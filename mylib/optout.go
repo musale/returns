@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"gcllbcks/common"
@@ -34,13 +33,13 @@ func saveOptout(req map[string]string) {
     db := common.DbCon
 	stmt, err1 := db.Prepare("insert into callbacks_optout (senderid, phone, time_added) values (?, ?, ?)")
 	if err1 != nil {
-		log.Fatal("Couldn't prepare for optout insert", err)
+		log.Fatal("Couldn't prepare for optout insert", err1)
 		return
 	}
 
 	defer stmt.Close()
 
-	res, err := stmt.Exec(req["sid"], req["num"], time.Now())
+	_, err := stmt.Exec(req["sid"], req["num"], time.Now())
 
 	if err != nil {
 		log.Fatal("Cannot run insert optout", err)

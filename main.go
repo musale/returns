@@ -2,15 +2,11 @@
 package main
 
 import (
-	"gcllbcks/mylib"
 	"log"
 	"net/http"
-	"time"
-
 	"database/sql"
-
 	_ "github.com/go-sql-driver/mysql"
-
+	"gcllbcks/mylib"
 	"gcllbcks/common"
 )
 
@@ -33,6 +29,6 @@ func main() {
 	http.HandleFunc("/dlrs", mylib.DlrPage)
 	http.HandleFunc("/inbox", mylib.InboxPage)
 	http.HandleFunc("/optout", mylib.OptoutPage)
-	log.Fatal(http.ListenAndServe(":5151", nil))
+	log.Fatal(http.ListenAndServe(":4147", nil))
 
 }

@@ -33,13 +33,13 @@ func saveDlr(req map[string]string) {
     db := common.DbCon
 	stmt, err1 := db.Prepare("update bsms_smsrecipient set status=?, reason=? where api_id=?")
 	if err1 != nil {
-		log.Fatal("Couldn't prepare for dlr update", err)
+		log.Fatal("Couldn't prepare for dlr update", err1)
 		return
 	}
 
 	defer stmt.Close()
 
-	res, err := stmt.Exec(req["status"], req["reason"], req["aid"])
+	_, err := stmt.Exec(req["status"], req["reason"], req["aid"])
 
 	if err != nil {
 		log.Fatal("Cannot run update dlr", err)
