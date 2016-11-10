@@ -2,38 +2,40 @@ package mylib
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
 	"gcllbcks/common"
 )
 
-
 func OptoutPage(w http.ResponseWriter, r *http.Request) {
+	logger := common.Logger
 	if r.Method != "POST" {
 		fmt.Fprintf(w, "Method Not Allowed")
 		return
 	}
 
-    sid := r.FormValue("senderId")
-    num := r.FormValue("phoneNumber")
+	sid := r.FormValue("senderId")
+	num := r.FormValue("phoneNumber")
 
-    request := map[string]string {
-        "sid": sid, "num": num,
-    }
+	request := map[string]string{
+		"sid": sid, "num": num,
+	}
 
-    go saveOptout(request)
+	logger.Println("Optout request: ", request)
+
+	go saveOptout(request)
 
 	fmt.Fprintf(w, "Optout Received")
 	return
 }
 
 func saveOptout(req map[string]string) {
-    db := common.DbCon
+	logger := common.Logger
+	db := common.DbCon
 	stmt, err1 := db.Prepare("insert into callbacks_optout (senderid, phone, time_added) values (?, ?, ?)")
 	if err1 != nil {
-		log.Fatal("Couldn't prepare for optout insert", err1)
+		logger.Println("Couldn't prepare for optout insert", err1)
 		return
 	}
 
@@ -42,8 +44,11 @@ func saveOptout(req map[string]string) {
 	_, err := stmt.Exec(req["sid"], req["num"], time.Now())
 
 	if err != nil {
-		log.Fatal("Cannot run insert optout", err)
+		logger.Println("Cannot run insert optout", err)
 		return
 	}
-    return
+
+	logger.Println("Saved opt out: ", req)
+
+	return
 }

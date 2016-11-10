@@ -1,0 +1,12 @@
+[Unit]
+Description=callbacks Service
+
+[Service]
+PIDFile=/tmp/gowiki.pid-4040
+User=root
+Group=root
+WorkingDirectory=/var/www
+ExecStart=/bin/bash -c '/apps/gcallbks'
+
+[Install]
+WantedBy=multi-user.target
