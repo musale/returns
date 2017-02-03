@@ -99,6 +99,7 @@ func checkShared(req map[string]string) {
 
 	if uid.Valid {
 		req["user_id"] = strconv.Itoa(int(uid.Int64))
+		req["kw"] = kw
 		go saveInboxData(req)
 	} else {
 		logger.Println("Shared has no user: ", req)
@@ -117,14 +118,29 @@ func saveInboxData(req map[string]string) {
 
 	defer stmt.Close()
 
-	_, err := stmt.Exec(0, req["from"], req["code"], req["aid"], req["txt"], req["user_id"], 0, req["date"], time.Now())
+	res, err := stmt.Exec(0, req["from"], req["code"], req["aid"], req["txt"], req["user_id"], 0, req["date"], time.Now())
 
 	if err != nil {
 		logger.Println("Cannot run insert Inbox", err)
 		return
 	}
 
-	logger.Println("Saved Inbox:", req)
+	oid, _ := res.LastInsertId()
 
+	logger.Println("Saved Inbox, id:", oid)
+	go sendAutoResponse(req)
+	return
+}
+
+func sendAutoResponse(req map[string]string) {
+	// select * from callbacks_autoresponse where user_id=req['user_id']
+	// and key=req['kw']
+
+	// select sum(trans_amount) from billing_cashtransaction where user_id=uid
+	// get cost of message
+	// if bal >= cost
+	// push to api
+	// create cashtrans
+	// save outbox and recipient
 	return
 }
