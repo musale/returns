@@ -3,8 +3,7 @@ package mylib
 import (
 	"fmt"
 	"net/http"
-
-	"gcllbcks/common"
+	"returns/common"
 )
 
 func DlrPage(w http.ResponseWriter, r *http.Request) {

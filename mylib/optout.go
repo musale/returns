@@ -3,9 +3,8 @@ package mylib
 import (
 	"fmt"
 	"net/http"
+	"returns/common"
 	"time"
-
-	"gcllbcks/common"
 )
 
 func OptoutPage(w http.ResponseWriter, r *http.Request) {
