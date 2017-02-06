@@ -89,13 +89,6 @@ func checkShared(req map[string]string) {
 	// err := row.Scan(&uid)
 	row.Scan(&uid)
 
-	// logger.Println("Uid: ", uid)
-
-	// if err != nil {
-	//     logger.Println("Couldn't scan select shared: ", err)
-	//     return
-	// }
-
 	if uid.Valid {
 		req["user_id"] = strconv.Itoa(int(uid.Int64))
 		req["kw"] = kw
