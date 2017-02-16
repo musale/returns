@@ -3,8 +3,9 @@ package mylib
 import (
 	"fmt"
 	"net/http"
-	"returns/common"
 	"time"
+
+	"github.com/etowett/returns/common"
 )
 
 func OptoutPage(w http.ResponseWriter, r *http.Request) {

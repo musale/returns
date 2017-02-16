@@ -5,17 +5,24 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"returns/common"
-	"returns/mylib"
 
+	"github.com/etowett/returns/common"
+	"github.com/etowett/returns/mylib"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/joho/godotenv"
 )
 
 var err error
 
 func main() {
 
-	common.DbCon, err = sql.Open("mysql", "kip:kip@db@/smsleopard")
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+		return
+	}
+
+	common.DbCon, err = sql.Open("mysql", os.Getenv("DB_USER")+":"+os.Getenv("DB_PASS")+"@/"+os.Getenv("DB_NAME")+"?charset=utf8")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -27,7 +34,7 @@ func main() {
 		panic(err.Error())
 	}
 
-	logFile, openErr1 := os.OpenFile("logs/callbacks.log", os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+	logFile, openErr1 := os.OpenFile(os.Getenv("LOG_DIR"), os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 
 	if openErr1 != nil {
 		log.Println("Uh oh! Could not open log file.", openErr1)
@@ -41,5 +48,5 @@ func main() {
 	http.HandleFunc("/at-dlrs", mylib.DlrPage)
 	http.HandleFunc("/inbox", mylib.InboxPage)
 	http.HandleFunc("/optout", mylib.OptoutPage)
-	log.Fatal(http.ListenAndServe(":4147", nil))
+	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
 }

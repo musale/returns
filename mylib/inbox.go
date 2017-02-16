@@ -4,10 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"returns/common"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/etowett/returns/common"
 )
 
 type Code struct {

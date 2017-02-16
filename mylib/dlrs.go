@@ -3,7 +3,8 @@ package mylib
 import (
 	"fmt"
 	"net/http"
-	"returns/common"
+
+	"github.com/etowett/returns/common"
 )
 
 func DlrPage(w http.ResponseWriter, r *http.Request) {

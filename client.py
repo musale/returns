@@ -8,7 +8,7 @@ from datetime import datetime
 from hashlib import md5
 from faker import Faker
 
-url = "http://127.0.0.1:4147/"
+url = "http://127.0.0.1:8017/"
 fake = Faker()
 
 
@@ -38,10 +38,10 @@ def get_message():
 
 
 def send_dlr(idx=None):
-    payload = urllib.urlencode({
+    payload = {
         'id': idx or md5(str(datetime.now())).hexdigest(),
         'status': get_status()
-    })
+    }
     return urllib2.urlopen(url + 'at-dlrs', urllib.urlencode(payload)).read()
 
 
@@ -54,5 +54,7 @@ def send_inbox():
 
 
 if __name__ == '__main__':
-    # print send_dlr()
-    print send_inbox()
+    # print send_inbox()
+    for i in xrange(2000):
+        print send_dlr()
+    print "Done"
