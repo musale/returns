@@ -43,10 +43,13 @@ func main() {
 	defer logFile.Close()
 
 	common.Logger = log.New(logFile, "", log.Lshortfile|log.Ldate|log.Ltime)
+	// Listen for Dlrs
+	go mylib.ListenForDlrs()
 
 	// Route set up
 	http.HandleFunc("/at-dlrs", mylib.DlrPage)
 	http.HandleFunc("/inbox", mylib.InboxPage)
 	http.HandleFunc("/optout", mylib.OptoutPage)
 	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
+
 }
