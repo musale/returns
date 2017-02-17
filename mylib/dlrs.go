@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/etowett/returns/common"
+	"github.com/garyburd/redigo/redis"
 )
 
 // DlrRequest struct
@@ -27,7 +29,7 @@ func (request *DlrRequest) parseRequest() string {
 // DlrPage rendering
 func DlrPage(w http.ResponseWriter, r *http.Request) {
 	logger := common.Logger
-	if r.Method != "POST" {
+	if r.Method != common.POST {
 		fmt.Fprintf(w, "Method Not Allowed")
 		return
 	}
@@ -59,6 +61,26 @@ func pushToQueue(requests ...DlrRequestInterface) {
 
 	for _, request := range requests {
 		pool.Do("RPUSH", "dlr_at", request.parseRequest())
+	}
+}
+
+// ListenForDlrs on redis
+func ListenForDlrs() {
+	logger := common.Logger
+	logger.Println("HEY! ", "hello")
+	pool := common.RedisPool().Get()
+	defer pool.Close()
+	for {
+		// dlrItem := make(map[string]DlrRequest)
+
+		request, err := redis.Strings(pool.Do("BLPOP", "dlr_at", 1))
+		logger.Println("REZ", request)
+		if err != nil {
+			logger.Println("ERROR POPPING DLR:: ", err)
+			time.Sleep(time.Second * 2)
+		}
+
+		// TODO: JSON DECODE
 	}
 }
 
