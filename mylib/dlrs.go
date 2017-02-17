@@ -1,12 +1,30 @@
 package mylib
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/etowett/returns/common"
 )
 
+// DlrRequest struct
+type DlrRequest struct {
+	APIID, Status, Reason string
+}
+
+// DlrRequestInterface definition
+type DlrRequestInterface interface {
+	parseRequest() string
+}
+
+// Function to parse a DlrRequest
+func (request *DlrRequest) parseRequest() string {
+	requestJSON, _ := json.Marshal(request)
+	return string(requestJSON)
+}
+
+// DlrPage rendering
 func DlrPage(w http.ResponseWriter, r *http.Request) {
 	logger := common.Logger
 	if r.Method != "POST" {
@@ -18,16 +36,30 @@ func DlrPage(w http.ResponseWriter, r *http.Request) {
 	status := r.FormValue("status")
 	reason := r.FormValue("reason")
 
-	request := map[string]string{
-		"aid": aid, "status": status, "reason": reason,
+	// request := map[string]string{
+	// 	"aid": aid, "status": status, "reason": reason,
+	// }
+	request := DlrRequest{APIID: aid, Status: status}
+
+	if status == "Failed" {
+		request.Reason = reason
 	}
 
-	go saveDlr(request)
+	go pushToQueue(&request)
 
 	logger.Println("Dlr Request: ", request)
 
 	fmt.Fprintf(w, "Dlr Received")
 	return
+}
+
+func pushToQueue(requests ...DlrRequestInterface) {
+	pool := common.RedisPool().Get()
+	defer pool.Close()
+
+	for _, request := range requests {
+		pool.Do("RPUSH", "dlr_at", request.parseRequest())
+	}
 }
 
 func saveDlr(req map[string]string) {
