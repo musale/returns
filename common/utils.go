@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +17,13 @@ import (
 type MessageData struct {
 	Message    string         `json:message`
 	Recipients []APIRecipient `json:recipients`
+}
+
+type APIRecipient struct {
+	Number    string `json:"number"`
+	Status    string `json:"status"`
+	Cost      string `json:"cost"`
+	MessageId string `json:"message_id"`
 }
 
 type CostData struct {
@@ -126,10 +132,6 @@ func ScheduleTask(queue string, data string, delay int64) {
 	defer c.Close()
 
 	run_at := time.Now().Unix() + delay
-
-	if err != nil {
-		log.Println("Uh oh! convert to json.", err)
-	}
 
 	c.Do("ZADD", queue, run_at, data)
 
