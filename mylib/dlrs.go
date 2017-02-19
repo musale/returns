@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/etowett/returns/common"
+	"github.com/garyburd/redigo/redis"
 )
 
 // DlrRequest struct
@@ -15,19 +17,28 @@ type DlrRequest struct {
 
 // DlrRequestInterface definition
 type DlrRequestInterface interface {
-	parseRequest() string
+	parseRequestString() string
+	parseRequestMap() map[string]string
 }
 
-// Function to parse a DlrRequest
-func (request *DlrRequest) parseRequest() string {
+// Function to parse a DlrRequest item to string
+func (request *DlrRequest) parseRequestString() string {
 	requestJSON, _ := json.Marshal(request)
 	return string(requestJSON)
 }
 
+// Function to parse a DlrRequest item to map[string]string
+func (request *DlrRequest) parseRequestMap() map[string]string {
+	return map[string]string{
+		"api_id": request.APIID,
+		"status": request.Status,
+		"reason": request.Reason,
+	}
+}
+
 // DlrPage rendering
 func DlrPage(w http.ResponseWriter, r *http.Request) {
-	logger := common.Logger
-	if r.Method != "POST" {
+	if r.Method != common.POST {
 		fmt.Fprintf(w, "Method Not Allowed")
 		return
 	}
@@ -36,9 +47,6 @@ func DlrPage(w http.ResponseWriter, r *http.Request) {
 	status := r.FormValue("status")
 	reason := r.FormValue("reason")
 
-	// request := map[string]string{
-	// 	"aid": aid, "status": status, "reason": reason,
-	// }
 	request := DlrRequest{APIID: aid, Status: status}
 
 	if status == "Failed" {
@@ -46,8 +54,6 @@ func DlrPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go pushToQueue(&request)
-
-	logger.Println("Dlr Request: ", request)
 
 	fmt.Fprintf(w, "Dlr Received")
 	return
@@ -58,7 +64,32 @@ func pushToQueue(requests ...DlrRequestInterface) {
 	defer pool.Close()
 
 	for _, request := range requests {
-		pool.Do("RPUSH", "dlr_at", request.parseRequest())
+		pool.Do("RPUSH", "dlr_at", request.parseRequestString())
+	}
+}
+
+// ListenForDlrs on redis
+func ListenForDlrs() {
+	logger := common.Logger
+	pool := common.RedisPool().Get()
+	defer pool.Close()
+	var dlrItem DlrRequest
+	for {
+		request, err := redis.Strings(pool.Do("BLPOP", "dlr_at", 1))
+		if err != nil {
+			logger.Println("ERROR POPPING DLR:: ", err)
+			time.Sleep(time.Second * 2)
+		}
+
+		for _, values := range request {
+			byteValue := []byte(values)
+			err := json.Unmarshal(byteValue, &dlrItem)
+			if err != nil {
+				logger.Println(err)
+			}
+
+			saveDlr(dlrItem.parseRequestMap())
+		}
 	}
 }
 
@@ -73,12 +104,12 @@ func saveDlr(req map[string]string) {
 
 	defer stmt.Close()
 
-	_, err := stmt.Exec(req["status"], req["reason"], req["aid"])
+	_, err := stmt.Exec(req["status"], req["reason"], req["api_id"])
 
 	if err != nil {
 		logger.Println("Cannot run update dlr", err)
 		return
 	}
-	logger.Println("Dlr saved: ", req["aid"])
+	logger.Println("Dlr saved: ", req["api_id"])
 	return
 }

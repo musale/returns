@@ -3,9 +3,9 @@
 import random
 import urllib
 import urllib2
-
 from datetime import datetime
 from hashlib import md5
+
 from faker import Faker
 
 url = "http://127.0.0.1:8017/"
@@ -55,6 +55,6 @@ def send_inbox():
 
 if __name__ == '__main__':
     # print send_inbox()
-    for i in xrange(2000):
+    for i in xrange(20):
         print send_dlr()
     print "Done"

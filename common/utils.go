@@ -14,26 +14,30 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
+//APIRecipient struct
+type APIRecipient struct {
+	Number    string `json:"number"`
+	Status    string `json:"status"`
+	Cost      string `json:"cost"`
+	MessageID string `json:"message_id"`
+}
+
+// MessageData struct
 type MessageData struct {
 	Message    string         `json:message`
 	Recipients []APIRecipient `json:recipients`
 }
 
-type APIRecipient struct {
-	Number    string `json:"number"`
-	Status    string `json:"status"`
-	Cost      string `json:"cost"`
-	MessageId string `json:"message_id"`
-}
-
+// CostData struct
 type CostData struct {
 	Number string
 	Status string
 	Reason string
-	ApiId  string
+	APIID  string
 	Cost   float64
 }
 
+// PushToAt pushes to the api
 func PushToAt(to string, msg string, sid string) []APIRecipient {
 	client := http.Client{}
 	form := url.Values{}
@@ -79,16 +83,17 @@ func PushToAt(to string, msg string, sid string) []APIRecipient {
 	return retData["SMSMessageData"].Recipients
 }
 
+// GetCosts gets the cost
 func GetCosts(recs []APIRecipient, costs map[string]float64) ([]CostData, string) {
-	var r_data []CostData
+	var rData []CostData
 	mcost := 0.00
 	for _, rec := range recs {
 		nrec := CostData{
-			Number: rec.Number, Reason: "", Cost: 0.00, ApiId: "",
+			Number: rec.Number, Reason: "", Cost: 0.00, APIID: "",
 		}
 		if rec.Status == "Success" {
 			nrec.Status = "sent"
-			nrec.ApiId = rec.MessageId
+			nrec.APIID = rec.MessageID
 			nrec.Cost = costs[rec.Number]
 		} else if rec.Status == "User In BlackList" {
 			nrec.Status = "opted_out"
@@ -97,22 +102,23 @@ func GetCosts(recs []APIRecipient, costs map[string]float64) ([]CostData, string
 			nrec.Status = "invalid_num"
 			nrec.Reason = "Number Invalid"
 		} else if rec.Status == "Could Not Send" {
-			nrec.Status = "failed"
+			nrec.Status = failed
 			nrec.Reason = "Rejected"
 		} else if rec.Status == "Insufficient Balance" {
-			nrec.Status = "failed"
+			nrec.Status = failed
 			nrec.Reason = "Insufficient Balance"
 		} else {
-			nrec.Status = "failed"
+			nrec.Status = failed
 			nrec.Reason = rec.Status
 		}
 		// cost, _ := strconv.ParseFloat(rec["cost"], 64)
-		r_data = append(r_data, nrec)
+		rData = append(rData, nrec)
 		mcost += nrec.Cost
 	}
-	return r_data, fmt.Sprintf("%.2f", mcost)
+	return rData, fmt.Sprintf("%.2f", mcost)
 }
 
+// RedisPool returns a redis pool
 func RedisPool() *redis.Pool {
 	return &redis.Pool{
 		MaxIdle:   80,
@@ -127,13 +133,14 @@ func RedisPool() *redis.Pool {
 	}
 }
 
+// ScheduleTask creates a schedule for future
 func ScheduleTask(queue string, data string, delay int64) {
 	c := RedisPool().Get()
 	defer c.Close()
 
-	run_at := time.Now().Unix() + delay
+	runAt := time.Now().Unix() + delay
 
-	c.Do("ZADD", queue, run_at, data)
+	c.Do("ZADD", queue, runAt, data)
 
 	return
 }
