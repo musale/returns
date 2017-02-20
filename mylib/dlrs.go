@@ -76,24 +76,26 @@ func ListenForDlrs() {
 	var dlrItem DlrRequest
 	for {
 		request, err := redis.Strings(pool.Do("BLPOP", "dlr_at", 1))
-		if err != nil {
-			logger.Println("ERROR POPPING DLR:: ", err)
+		if err != nil && err == redis.ErrNil {
+			logger.Println("NO DLRs. Sleeping 2 seconds ...")
 			time.Sleep(time.Second * 2)
 		}
 
 		for _, values := range request {
-			byteValue := []byte(values)
-			err := json.Unmarshal(byteValue, &dlrItem)
-			if err != nil {
-				logger.Println(err)
-			}
+			if values != "dlr_at" {
+				byteValue := []byte(values)
+				err := json.Unmarshal(byteValue, &dlrItem)
+				if err != nil {
+					logger.Println(err)
+				}
 
-			saveDlr(dlrItem.parseRequestMap())
+				updateDlr(dlrItem.parseRequestMap())
+			}
 		}
 	}
 }
 
-func saveDlr(req map[string]string) {
+func updateDlr(req map[string]string) {
 	logger := common.Logger
 	db := common.DbCon
 	stmt, err1 := db.Prepare("update bsms_smsrecipient set status=?, reason=? where api_id=?")
