@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/etowett/returns/common"
@@ -49,7 +50,7 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 	status := r.FormValue("status")
 
 	request := DlrRequest{
-		APIID: aid, Status: status, TimeReceived: time.Now(),
+		APIID: aid, Status: strings.ToUpper(status), TimeReceived: time.Now(),
 	}
 
 	if status == "Failed" || status == "Rejected" {
@@ -76,7 +77,7 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 	status := r.FormValue("sStatus")
 
 	request := DlrRequest{
-		APIID: aid, Status: status, TimeReceived: time.Now(),
+		APIID: aid, Status: strings.ToUpper(status), TimeReceived: time.Now(),
 	}
 
 	logger.Println("RMDLR Request:", request)

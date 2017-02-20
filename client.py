@@ -8,7 +8,7 @@ from hashlib import md5
 
 from faker import Faker
 
-url = "http://callbacks.xsmsl.com/"
+url = "http://127.0.0.1:8017/"
 fake = Faker()
 
 
@@ -138,5 +138,6 @@ if __name__ == '__main__':
     # for i in xrange(220):
     #     print send_dlr()
     # print push_dlrs()
-    print push_rms_dlrs()
+    # print push_rms_dlrs()
+    print send_dlr('bd7baf2b7a24ff8bed7c2d5ba58965ac')
     print "Done"
