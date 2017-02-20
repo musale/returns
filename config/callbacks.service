@@ -1,0 +1,15 @@
+[Unit]
+Description=Callbacks Application
+
+[Service]
+ExecStart=/apps/bin/callbacks/returns
+
+WorkingDirectory=/apps/bin/callbacks
+
+User=ekt
+Group=users
+
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

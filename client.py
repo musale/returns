@@ -8,7 +8,7 @@ from hashlib import md5
 
 from faker import Faker
 
-url = "http://127.0.0.1:8017/"
+url = "http://callbacks.xsmsl.com/"
 fake = Faker()
 
 
@@ -96,10 +96,10 @@ select api_id from bsms_smsrecipient where api_id is not null
 
 def push_dlrs():
     dlrs = []
-    with open('dlr_reports.csv', 'r') as f:
+    with open('/home/ekt/Desktop/dlr_reports.csv', 'r') as f:
         for x in f.readlines():
             dlrs.append(x.strip())
-    for x in dlrs:
+    for x in dlrs[20]:
         print send_dlr(x)
     return
 
