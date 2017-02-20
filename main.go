@@ -22,7 +22,7 @@ func main() {
 		return
 	}
 
-	common.DbCon, err = sql.Open("mysql", os.Getenv("DB_USER")+":"+os.Getenv("DB_PASS")+"@/"+os.Getenv("DB_NAME")+"?charset=utf8")
+	common.DbCon, err = sql.Open("mysql", os.Getenv("DB_USER")+":"+os.Getenv("DB_PASS")+"@tcp("+os.Getenv("DB_HOST")+")/"+os.Getenv("DB_NAME")+"?charset=utf8")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -48,7 +48,8 @@ func main() {
 	go mylib.ListenForDlrs()
 
 	// Route set up
-	http.HandleFunc("/at-dlrs", mylib.DlrPage)
+	http.HandleFunc("/at-dlrs", mylib.ATDlrPage)
+	http.HandleFunc("/rm-dlrs", mylib.RMDlrPage)
 	http.HandleFunc("/inbox", mylib.InboxPage)
 	http.HandleFunc("/optout", mylib.OptoutPage)
 	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))

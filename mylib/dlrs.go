@@ -37,8 +37,8 @@ func (request *DlrRequest) parseRequestMap() map[string]string {
 	}
 }
 
-// DlrPage rendering
-func DlrPage(w http.ResponseWriter, r *http.Request) {
+// ATDlrPage rendering
+func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 	logger := common.Logger
 	if r.Method != common.POST {
 		fmt.Fprintf(w, "Method Not Allowed")
@@ -56,7 +56,30 @@ func DlrPage(w http.ResponseWriter, r *http.Request) {
 		request.Reason = r.FormValue("failureReason")
 	}
 
-	logger.Println("DLR Request:", request)
+	logger.Println("ATDLR Request:", request)
+
+	go pushToQueue(&request)
+
+	fmt.Fprintf(w, "Dlr Received")
+	return
+}
+
+// DlrPage rendering
+func RMDlrPage(w http.ResponseWriter, r *http.Request) {
+	logger := common.Logger
+	if r.Method != common.POST {
+		fmt.Fprintf(w, "Method Not Allowed")
+		return
+	}
+
+	aid := r.FormValue("sMessageId")
+	status := r.FormValue("sStatus")
+
+	request := DlrRequest{
+		APIID: aid, Status: status, TimeReceived: time.Now(),
+	}
+
+	logger.Println("RMDLR Request:", request)
 
 	go pushToQueue(&request)
 

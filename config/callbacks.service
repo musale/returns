@@ -2,9 +2,9 @@
 Description=Callbacks Application
 
 [Service]
-ExecStart=/apps/bin/callbacks/returns
+ExecStart=/apps/gocode/bin/returns
 
-WorkingDirectory=/apps/bin/callbacks
+WorkingDirectory=/apps/gocode/bin
 
 User=ekt
 Group=users

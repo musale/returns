@@ -3,7 +3,7 @@
 import random
 import urllib
 import urllib2
-from datetime import datetime
+from datetime import datetime, timedelta
 from hashlib import md5
 
 from faker import Faker
@@ -104,9 +104,39 @@ def push_dlrs():
     return
 
 
+def get_status_rm():
+    return random.choice([
+        'UNKNOWN', 'ACKED', 'ENROUTE', 'DELIVRD',
+        'EXPIRED', 'DELETED', 'UNDELIV', 'ACCEPTED', 'REJECTD'
+    ])
+
+
+def send_rms_dlr(idx):
+    s = random.randint(3, 100)
+    payload = {
+        'sStatus': get_status_rm(), 'reason': None,
+        'sMessageId': idx or md5('hello').hexdigest(),
+        'sSender': 'SMSLEOPARD', 'sMobileNo': '727372285',
+        'dtDone': str(datetime.now())[:19],
+        'dtSubmit': str(datetime.now() - timedelta(seconds=s))
+    }
+    return urllib2.urlopen(url + 'rm-dlrs', urllib.urlencode(payload)).read()
+
+
+def push_rms_dlrs():
+    dlrs = []
+    with open('/home/ekt/Desktop/dlr_reports.csv', 'r') as f:
+        for x in f.readlines():
+            dlrs.append(x.strip())
+    for x in dlrs[20:]:
+        print send_rms_dlr(x)
+    return
+
+
 if __name__ == '__main__':
     # print send_inbox()
     # for i in xrange(220):
     #     print send_dlr()
-    print push_dlrs()
+    # print push_dlrs()
+    print push_rms_dlrs()
     print "Done"
