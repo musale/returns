@@ -43,6 +43,7 @@ func main() {
 	defer logFile.Close()
 
 	common.Logger = log.New(logFile, "", log.Lshortfile|log.Ldate|log.Ltime)
+
 	// Listen for Dlrs
 	go mylib.ListenForDlrs()
 

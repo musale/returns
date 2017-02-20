@@ -13,7 +13,7 @@ fake = Faker()
 
 
 def get_status():
-    return random.choice(['Success', 'Failed'])
+    return random.choice(['Success', 'Failed', 'Rejected'])
 
 
 def get_phone():
@@ -37,11 +37,21 @@ def get_message():
     return message
 
 
+def get_reason(status):
+    reason = 'subscriberNotExist'
+    if status == 'Failed':
+        return 'userUnreachable'
+    return reason
+
+
 def send_dlr(idx=None):
+    status = get_status()
     payload = {
         'id': idx or md5(str(datetime.now())).hexdigest(),
-        'status': get_status()
+        'status': status,
     }
+    if status == 'Failed' or status == 'Rejected':
+        payload['failureReason'] = get_reason(status)
     return urllib2.urlopen(url + 'at-dlrs', urllib.urlencode(payload)).read()
 
 
@@ -53,8 +63,50 @@ def send_inbox():
     return urllib2.urlopen(url + 'inbox', urllib.urlencode(payload)).read()
 
 
+def pull_dlrs():
+    import csv
+    import MySQLdb as mdb
+
+    host = 'localhost'
+    user = 'kip'
+    passw = 'kip@db'
+    db = 'smsleopard'
+
+    db = mdb.connect(
+        host=host, user=user, passwd=passw, db=db)
+
+    cur = db.cursor(mdb.cursors.DictCursor)
+
+    sql = """
+select api_id from bsms_smsrecipient where api_id is not null
+"""
+    cur.execute(sql)
+
+    aids = []
+    for aid in cur.fetchall():
+        rid = aid['api_id']
+        if len(rid) > 2:
+            aids.append([rid])
+
+    with open('dlr_reports.csv', 'w') as fp:
+        a = csv.writer(fp, delimiter=',')
+        a.writerows(aids)
+    return 'Ready'
+
+
+def push_dlrs():
+    dlrs = []
+    with open('dlr_reports.csv', 'r') as f:
+        for x in f.readlines():
+            dlrs.append(x.strip())
+    for x in dlrs:
+        print send_dlr(x)
+    return
+
+
 if __name__ == '__main__':
     # print send_inbox()
-    for i in xrange(20):
-        print send_dlr()
+    # for i in xrange(220):
+    #     print send_dlr()
+    print push_dlrs()
     print "Done"
