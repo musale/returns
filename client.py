@@ -60,7 +60,8 @@ def send_inbox():
         'from': get_phone(), 'to': get_code(), 'text': get_message(),
         'date': str(datetime.now()), 'id': md5(str(datetime.now())).hexdigest()
     }
-    return urllib2.urlopen(url + 'inbox', urllib.urlencode(payload)).read()
+    return urllib2.urlopen('http://xsmsl.com/callbacks/inbox', urllib.urlencode(payload)).read()
+    # return urllib2.urlopen(url + 'inbox', urllib.urlencode(payload)).read()
 
 
 def pull_dlrs():
@@ -135,8 +136,9 @@ def push_rms_dlrs():
 
 if __name__ == '__main__':
     # print send_inbox()
-    # for i in xrange(220):
+    for i in xrange(2200):
+        print send_inbox()
     #     print send_dlr()
     # print push_dlrs()
-    print push_rms_dlrs()
+    # print push_rms_dlrs()
     print "Done"
