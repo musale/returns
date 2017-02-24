@@ -8,7 +8,8 @@ from hashlib import md5
 
 from faker import Faker
 
-url = "http://callbacks.xsmsl.com/"
+# url = "http://callbacks.xsmsl.com/"
+url = "http://127.0.0.1:8017/"
 fake = Faker()
 
 
@@ -55,12 +56,21 @@ def send_dlr(idx=None):
     return urllib2.urlopen(url + 'at-dlrs', urllib.urlencode(payload)).read()
 
 
+def send_cache_req(idx=None):
+    payload = {
+        'api_id': idx or md5(str(datetime.now())).hexdigest(),
+        'recipient_id': random.randint(1, 9999),
+    }
+    return urllib2.urlopen(url + 'cache-dlr', urllib.urlencode(payload)).read()
+
+
 def send_inbox():
     payload = {
         'from': get_phone(), 'to': get_code(), 'text': get_message(),
         'date': str(datetime.now()), 'id': md5(str(datetime.now())).hexdigest()
     }
-    return urllib2.urlopen('http://xsmsl.com/callbacks/inbox', urllib.urlencode(payload)).read()
+    return urllib2.urlopen(
+        'http://xsmsl.com/callbacks/inbox', urllib.urlencode(payload)).read()
     # return urllib2.urlopen(url + 'inbox', urllib.urlencode(payload)).read()
 
 
@@ -136,9 +146,10 @@ def push_rms_dlrs():
 
 if __name__ == '__main__':
     # print send_inbox()
-    for i in xrange(2200):
-        print send_inbox()
-    #     print send_dlr()
+    for i in xrange(20):
+        # print send_inbox()
+        print send_cache_req()
+        print send_dlr()
     # print push_dlrs()
     # print push_rms_dlrs()
     print "Done"

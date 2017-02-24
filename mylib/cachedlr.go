@@ -1,16 +1,37 @@
 package mylib
 
-import "net/http"
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/etowett/returns/common"
+)
+
+type Response struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
 
 func CacheDlrPage(w http.ResponseWriter, r *http.Request) {
 
-	// get form parameters
+	c := common.RedisPool().Get()
+	defer c.Close()
 
-	// params: api_id, message_id
+	APIID := r.FormValue("api_id")
+	recID := r.FormValue("recipient_id")
 
-	// save them as redis strings in async
+	ttl := int(time.Second * 60 * 60 * 24 * 14)
 
-	// SETEX <apiid> <2 wks> mid\
+	log.Println("api_id: ", APIID, " rec_id: ", recID, " ttl: ", ttl)
 
-	// return json response
+	if _, err := c.Do("SETEX", APIID, ttl, recID); err != nil {
+		log.Fatal("cache error ", err)
+	}
+
+	json.NewEncoder(w).Encode(Response{
+		Status: "success", Message: "Normal received",
+	})
+
 }

@@ -3,6 +3,7 @@ package mylib
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -131,9 +132,14 @@ func saveDlr(req DlrRequest) {
 	pool := common.RedisPool().Get()
 	defer pool.Close()
 
-	messageId, err := redis.String(c.Do("GET", req.APIID))
+	messageID, err := redis.String(pool.Do("GET", req.APIID))
 
-	c.Do("DEL", req.APIID)
+	if err != nil && err == redis.ErrNil {
+		log.Println("APIID Not there:", req)
+		return
+	}
+
+	pool.Do("DEL", req.APIID)
 
 	stmt, err := common.DbCon.Prepare("insert into bsms_dlrstatus (status, reason, api_time, message_id) values (?, ?, ?)")
 	if err != nil {
@@ -145,7 +151,7 @@ func saveDlr(req DlrRequest) {
 
 	defer stmt.Close()
 
-	_, err := stmt.Exec(req.Status, req.Reason, req.TimeReceived, messageId)
+	_, err = stmt.Exec(req.Status, req.Reason, req.TimeReceived, messageID)
 
 	if err != nil {
 		// requeue request
@@ -167,7 +173,7 @@ func updateDlr(req DlrRequest) {
 
 	defer stmt.Close()
 
-	_, err := stmt.Exec(req.Status, req.Reason, req.TimeReceived, req.APIID)
+	_, err = stmt.Exec(req.Status, req.Reason, req.TimeReceived, req.APIID)
 
 	if err != nil {
 		common.Logger.Fatal("Exec Update: ", err)
