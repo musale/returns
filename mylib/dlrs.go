@@ -126,26 +126,30 @@ func ListenForDlrs() {
 	}
 }
 
-func saveDlr(req.DlrRequest) {
+func saveDlr(req DlrRequest) {
 	// get from redis string where api_id
 	pool := common.RedisPool().Get()
 	defer pool.Close()
 
-	apiID, err := redis.String(c.Do("GET", req.APIID))
+	messageId, err := redis.String(c.Do("GET", req.APIID))
 
 	c.Do("DEL", req.APIID)
 
-	stmt, err := common.DbCon.Prepare("insert into bsms_dlrstatus (status, reason, api_time) values (?, ?, ?)")
+	stmt, err := common.DbCon.Prepare("insert into bsms_dlrstatus (status, reason, api_time, message_id) values (?, ?, ?)")
 	if err != nil {
 		common.Logger.Fatal("Prepare Insert: ", err)
+		// requeue request
+		// resave api_id
 		return
 	}
 
 	defer stmt.Close()
 
-	_, err := stmt.Exec(req.Status, req.Reason, req.TimeReceived, apiID)
+	_, err := stmt.Exec(req.Status, req.Reason, req.TimeReceived, messageId)
 
 	if err != nil {
+		// requeue request
+		// resave api_id
 		common.Logger.Fatal("Exec Insert: ", err)
 		return
 	}

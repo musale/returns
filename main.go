@@ -50,6 +50,7 @@ func main() {
 	// Route set up
 	http.HandleFunc("/at-dlrs", mylib.ATDlrPage)
 	http.HandleFunc("/rm-dlrs", mylib.RMDlrPage)
+	http.HandleFunc("/cache-dlr", mylib.CacheDlrPage)
 	http.HandleFunc("/inbox", mylib.InboxPage)
 	http.HandleFunc("/optout", mylib.OptoutPage)
 	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
