@@ -3,4 +3,4 @@
 *.log.*
 .env
 .pyc
-
+dlr_reports.csv

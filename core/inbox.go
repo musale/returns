@@ -1,4 +1,4 @@
-package mylib
+package core
 
 import (
 	"database/sql"
@@ -18,7 +18,6 @@ type Code struct {
 }
 
 func InboxPage(w http.ResponseWriter, r *http.Request) {
-	logger := common.Logger
 	if r.Method != "POST" {
 		fmt.Fprintf(w, "Method Not Allowed")
 		return
@@ -35,7 +34,7 @@ func InboxPage(w http.ResponseWriter, r *http.Request) {
 		"date": date, "aid": id,
 	}
 
-	logger.Println("Inbox request: ", request)
+	common.Logger.Println("Inbox request: ", request)
 
 	go saveInbox(request)
 
@@ -44,11 +43,11 @@ func InboxPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func saveInbox(req map[string]string) {
-	logger := common.Logger
+
 	dets := getCodeDets(req["code"])
 
 	if (Code{}) == dets {
-		logger.Println("Inbox no code:", req)
+		common.Logger.Println("Inbox no code:", req)
 	} else {
 		req["code_id"] = dets.Id
 		if dets.Type == "DEDICATED" {
@@ -56,7 +55,7 @@ func saveInbox(req map[string]string) {
 				req["user_id"] = strconv.Itoa(int(dets.UserId.Int64))
 				go saveInboxData(req)
 			} else {
-				logger.Println("Dedicated has no user:", req)
+				common.Logger.Println("Dedicated has no user:", req)
 			}
 		} else if dets.Type == "SHARED" {
 			go checkShared(req)
@@ -80,7 +79,7 @@ func getCodeDets(code string) Code {
 }
 
 func checkShared(req map[string]string) {
-	logger := common.Logger
+
 	db := common.DbCon
 	cd := req["code_id"]
 	kw := strings.ToLower(strings.Fields(req["txt"])[0])
@@ -95,17 +94,17 @@ func checkShared(req map[string]string) {
 		req["kw"] = kw
 		go saveInboxData(req)
 	} else {
-		logger.Println("Shared has no user: ", req)
+		common.Logger.Println("Shared has no user: ", req)
 	}
 	return
 }
 
 func saveInboxData(req map[string]string) {
-	logger := common.Logger
+
 	db := common.DbCon
 	stmt, err1 := db.Prepare("insert into bsms_smsinbox(is_read, sender, short_code, api_id, message, user_id, deleted, api_date, insert_date) values (?, ?, ?, ?, ?, ?, ?, ?, ?)")
 	if err1 != nil {
-		logger.Println("Couldn't prepare for inbox insert", err1)
+		common.Logger.Println("Couldn't prepare for inbox insert", err1)
 		return
 	}
 
@@ -114,13 +113,13 @@ func saveInboxData(req map[string]string) {
 	res, err := stmt.Exec(0, req["from"], req["code"], req["aid"], req["txt"], req["user_id"], 0, req["date"], time.Now())
 
 	if err != nil {
-		logger.Println("Cannot run insert Inbox", err)
+		common.Logger.Println("Cannot run insert Inbox", err)
 		return
 	}
 
 	oid, _ := res.LastInsertId()
 
-	logger.Println("Saved Inbox, id:", oid)
+	common.Logger.Println("Saved Inbox, id:", oid)
 	go sendAutoResponse(req)
 	return
 }

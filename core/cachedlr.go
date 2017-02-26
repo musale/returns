@@ -1,10 +1,9 @@
-package mylib
+package core
 
 import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/etowett/returns/common"
 )
@@ -22,16 +21,16 @@ func CacheDlrPage(w http.ResponseWriter, r *http.Request) {
 	APIID := r.FormValue("api_id")
 	recID := r.FormValue("recipient_id")
 
-	ttl := int(time.Second * 60 * 60 * 24 * 14)
+	// ttl := int(time.Second * 60 * 60 * 24 * 14)
 
-	log.Println("api_id: ", APIID, " rec_id: ", recID, " ttl: ", ttl)
+	common.Logger.Println("Cache DLR request: api_id: ", APIID, " rec_id: ", recID)
 
-	if _, err := c.Do("SETEX", APIID, ttl, recID); err != nil {
+	if _, err := c.Do("SETEX", APIID, 1209600000000000, recID); err != nil {
 		log.Fatal("cache error ", err)
 	}
 
 	json.NewEncoder(w).Encode(Response{
-		Status: "success", Message: "Normal received",
+		Status: "success", Message: "dlr received",
 	})
 
 }

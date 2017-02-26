@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/etowett/returns/common"
-	"github.com/etowett/returns/mylib"
+	"github.com/etowett/returns/core"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
 )
@@ -18,7 +18,7 @@ func main() {
 
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal("Error loading .env file ", err)
 		return
 	}
 
@@ -31,13 +31,15 @@ func main() {
 	// Test the connection to the database
 	err = common.DbCon.Ping()
 	if err != nil {
-		panic(err.Error())
+		log.Fatal("Error DB ping ", err)
+		return
 	}
 
-	logFile, openErr1 := os.OpenFile(os.Getenv("LOG_DIR"), os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+	logFile, err := os.OpenFile(os.Getenv("LOG_DIR"), os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 
-	if openErr1 != nil {
-		log.Println("Uh oh! Could not open log file.", openErr1)
+	if err != nil {
+		log.Fatal("Log file error ", err)
+		return
 	}
 
 	defer logFile.Close()
@@ -45,14 +47,14 @@ func main() {
 	common.Logger = log.New(logFile, "", log.Lshortfile|log.Ldate|log.Ltime)
 
 	// Listen for Dlrs
-	go mylib.ListenForDlrs()
+	go core.ListenForDlrs()
 
 	// Route set up
-	http.HandleFunc("/at-dlrs", mylib.ATDlrPage)
-	http.HandleFunc("/rm-dlrs", mylib.RMDlrPage)
-	http.HandleFunc("/cache-dlr", mylib.CacheDlrPage)
-	http.HandleFunc("/inbox", mylib.InboxPage)
-	http.HandleFunc("/optout", mylib.OptoutPage)
+	http.HandleFunc("/at-dlrs", core.ATDlrPage)
+	http.HandleFunc("/rm-dlrs", core.RMDlrPage)
+	http.HandleFunc("/cache-dlr", core.CacheDlrPage)
+	http.HandleFunc("/inbox", core.InboxPage)
+	http.HandleFunc("/optout", core.OptoutPage)
 	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
 
 }

@@ -1,10 +1,10 @@
-package mylib
+package core
 
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/etowett/returns/common"
@@ -40,7 +40,6 @@ func (request *DlrRequest) parseRequestMap() map[string]string {
 
 // ATDlrPage rendering
 func ATDlrPage(w http.ResponseWriter, r *http.Request) {
-	logger := common.Logger
 	if r.Method != common.POST {
 		fmt.Fprintf(w, "Method Not Allowed")
 		return
@@ -57,17 +56,17 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 		request.Reason = r.FormValue("failureReason")
 	}
 
-	logger.Println("ATDLR Request:", request)
+	common.Logger.Println("ATDLR Request:", request)
 
 	go pushToQueue(&request)
 
-	fmt.Fprintf(w, "Dlr Received")
+	fmt.Fprintf(w, "ATDlr Received")
 	return
 }
 
 // DlrPage rendering
 func RMDlrPage(w http.ResponseWriter, r *http.Request) {
-	logger := common.Logger
+
 	if r.Method != common.POST {
 		fmt.Fprintf(w, "Method Not Allowed")
 		return
@@ -80,11 +79,11 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 		APIID: aid, Status: status, TimeReceived: time.Now(),
 	}
 
-	logger.Println("RMDLR Request:", request)
+	common.Logger.Println("RMDLR Request:", request)
 
 	go pushToQueue(&request)
 
-	fmt.Fprintf(w, "Dlr Received")
+	fmt.Fprintf(w, "RMDlr Received")
 	return
 }
 
@@ -101,7 +100,6 @@ func pushToQueue(request ...DlrRequestInterface) {
 
 // ListenForDlrs on redis
 func ListenForDlrs() {
-	logger := common.Logger
 	pool := common.RedisPool().Get()
 	defer pool.Close()
 
@@ -118,7 +116,7 @@ func ListenForDlrs() {
 			if values != "dlr_at" {
 				err := json.Unmarshal([]byte(values), &dlrItem)
 				if err != nil {
-					logger.Println("req Unmarshal", err)
+					common.Logger.Println("req Unmarshal", err)
 				}
 				saveDlr(dlrItem)
 				// updateDlr(dlrItem)
@@ -132,18 +130,18 @@ func saveDlr(req DlrRequest) {
 	pool := common.RedisPool().Get()
 	defer pool.Close()
 
-	messageID, err := redis.String(pool.Do("GET", req.APIID))
+	recID, err := redis.String(pool.Do("GET", req.APIID))
 
 	if err != nil && err == redis.ErrNil {
-		log.Println("APIID Not there:", req)
+		common.Logger.Println("APIID Not Found:", req)
 		return
 	}
 
 	pool.Do("DEL", req.APIID)
 
-	stmt, err := common.DbCon.Prepare("insert into bsms_dlrstatus (status, reason, api_time, message_id) values (?, ?, ?)")
+	stmt, err := common.DbCon.Prepare("insert into bsms_dlrstatus (status, reason, api_time, recipient_id) values (?, ?, ?, ?)")
 	if err != nil {
-		common.Logger.Fatal("Prepare Insert: ", err)
+		common.Logger.Println("Prepare Insert: ", err)
 		// requeue request
 		// resave api_id
 		return
@@ -151,16 +149,14 @@ func saveDlr(req DlrRequest) {
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(req.Status, req.Reason, req.TimeReceived, messageID)
+	_, err = stmt.Exec(strings.ToUpper(req.Status), req.Reason, req.TimeReceived, recID)
 
 	if err != nil {
-		// requeue request
-		// resave api_id
-		common.Logger.Fatal("Exec Insert: ", err)
+
+		common.Logger.Println("Exec Insert: ", err)
 		return
 	}
 	common.Logger.Println("Dlr saved: ", req.APIID)
-
 	return
 }
 
@@ -173,7 +169,7 @@ func updateDlr(req DlrRequest) {
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(req.Status, req.Reason, req.TimeReceived, req.APIID)
+	_, err = stmt.Exec(strings.ToUpper(req.Status), req.Reason, req.TimeReceived, req.APIID)
 
 	if err != nil {
 		common.Logger.Fatal("Exec Update: ", err)
