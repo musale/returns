@@ -78,14 +78,10 @@ def pull_dlrs():
     import csv
     import MySQLdb as mdb
 
-    # host = 'localhost'
-    # user = 'kip'
-    # passw = 'kip@db'
+    host = 'localhost'
+    user = 'kip'
+    passw = 'kip@db'
     db = 'smsleopard'
-
-    host = "139.162.180.34"
-    user = "smsleopard"
-    passw = "@qgUaQwb99"
 
     db = mdb.connect(
         host=host, user=user, passwd=passw, db=db)

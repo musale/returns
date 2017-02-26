@@ -47,7 +47,7 @@ func main() {
 	common.Logger = log.New(logFile, "", log.Lshortfile|log.Ldate|log.Ltime)
 
 	// Listen for Dlrs
-	// go core.ListenForDlrs()
+	go core.ListenForDlrs()
 
 	// Route set up
 	http.HandleFunc("/at-dlrs", core.ATDlrPage)
