@@ -8,6 +8,7 @@ from hashlib import md5
 
 from faker import Faker
 
+# url = "http://callbacks.xsmsl.com/"
 url = "http://127.0.0.1:8017/"
 fake = Faker()
 
@@ -55,22 +56,36 @@ def send_dlr(idx=None):
     return urllib2.urlopen(url + 'at-dlrs', urllib.urlencode(payload)).read()
 
 
+def send_cache_req(idx=None, rid=None):
+    payload = {
+        'api_id': idx or md5(str(datetime.now())).hexdigest(),
+        'recipient_id': rid or random.randint(1, 9999),
+    }
+    return urllib2.urlopen(url + 'cache-dlr', urllib.urlencode(payload)).read()
+
+
 def send_inbox():
     payload = {
         'from': get_phone(), 'to': get_code(), 'text': get_message(),
         'date': str(datetime.now()), 'id': md5(str(datetime.now())).hexdigest()
     }
-    return urllib2.urlopen(url + 'inbox', urllib.urlencode(payload)).read()
+    return urllib2.urlopen(
+        'http://xsmsl.com/callbacks/inbox', urllib.urlencode(payload)).read()
+    # return urllib2.urlopen(url + 'inbox', urllib.urlencode(payload)).read()
 
 
 def pull_dlrs():
     import csv
     import MySQLdb as mdb
 
-    host = 'localhost'
-    user = 'kip'
-    passw = 'kip@db'
+    # host = 'localhost'
+    # user = 'kip'
+    # passw = 'kip@db'
     db = 'smsleopard'
+
+    host = "139.162.180.34"
+    user = "smsleopard"
+    passw = "@qgUaQwb99"
 
     db = mdb.connect(
         host=host, user=user, passwd=passw, db=db)
@@ -78,28 +93,39 @@ def pull_dlrs():
     cur = db.cursor(mdb.cursors.DictCursor)
 
     sql = """
-select api_id from bsms_smsrecipient where api_id is not null
+select id, api_id from bsms_smsrecipient where api_id is not null
+and time_sent > '2017-02-21 00:00:00'
 """
     cur.execute(sql)
 
     aids = []
     for aid in cur.fetchall():
-        rid = aid['api_id']
-        if len(rid) > 2:
-            aids.append([rid])
+        if len(aid['api_id']) > 0:
+            aids.append([aid['id'], aid['api_id']])
 
     with open('dlr_reports.csv', 'w') as fp:
         a = csv.writer(fp, delimiter=',')
         a.writerows(aids)
-    return 'Ready'
+    return 'file written'
+
+
+def cache_dlrs():
+    dlrs = []
+    with open('dlr_reports.csv', 'r') as f:
+        for ex in f.readlines():
+            x = ex.split(",")
+            dlrs.append((x[0].strip(), x[1].strip(),))
+    for x in dlrs:
+        print send_cache_req(x[1], x[0])
+    return 'Done'
 
 
 def push_dlrs():
     dlrs = []
-    with open('/home/ekt/Desktop/dlr_reports.csv', 'r') as f:
+    with open('dlr_reports.csv', 'r') as f:
         for x in f.readlines():
             dlrs.append(x.strip())
-    for x in dlrs[20]:
+    for x in dlrs:
         print send_dlr(x)
     return
 
@@ -123,21 +149,22 @@ def send_rms_dlr(idx):
     return urllib2.urlopen(url + 'rm-dlrs', urllib.urlencode(payload)).read()
 
 
-def push_rms_dlrs():
+def push_all_dlrs():
     dlrs = []
-    with open('/home/ekt/Desktop/dlr_reports.csv', 'r') as f:
+    with open('dlr_reports.csv', 'r') as f:
         for x in f.readlines():
             dlrs.append(x.strip())
-    for x in dlrs[20:]:
-        print send_rms_dlr(x)
+    for x in dlrs:
+        rid, aid = x.split(",")
+        if len(aid) == 36:
+            print send_rms_dlr(aid)
+        else:
+            print send_dlr(aid)
     return
 
 
 if __name__ == '__main__':
-    # print send_inbox()
-    # for i in xrange(220):
-    #     print send_dlr()
-    # print push_dlrs()
-    # print push_rms_dlrs()
-    print send_dlr('bd7baf2b7a24ff8bed7c2d5ba58965ac')
-    print "Done"
+
+    print pull_dlrs()
+
+    # print cache_dlrs()
