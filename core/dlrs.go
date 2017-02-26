@@ -92,7 +92,7 @@ func pushToQueue(request ...DlrRequestInterface) {
 	defer pool.Close()
 
 	for _, req := range request {
-		pool.Do("RPUSH", "dlr_at", req.parseRequestString())
+		pool.Do("RPUSH", "dlrs", req.parseRequestString())
 	}
 
 	return
@@ -106,14 +106,14 @@ func ListenForDlrs() {
 	var dlrItem DlrRequest
 
 	for {
-		request, err := redis.Strings(pool.Do("BLPOP", "dlr_at", 1))
+		request, err := redis.Strings(pool.Do("BLPOP", "dlrs", 1))
 
 		if err != nil && err == redis.ErrNil {
 			time.Sleep(time.Second * 2)
 		}
 
 		for _, values := range request {
-			if values != "dlr_at" {
+			if values != "dlrs" {
 				err := json.Unmarshal([]byte(values), &dlrItem)
 				if err != nil {
 					common.Logger.Println("req Unmarshal", err)
