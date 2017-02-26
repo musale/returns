@@ -21,8 +21,6 @@ func CacheDlrPage(w http.ResponseWriter, r *http.Request) {
 	APIID := r.FormValue("api_id")
 	recID := r.FormValue("recipient_id")
 
-	// ttl := int(time.Second * 60 * 60 * 24 * 14)
-
 	common.Logger.Println("Cache DLR request: api_id: ", APIID, " rec_id: ", recID)
 
 	if _, err := c.Do("SETEX", APIID, 1209600000000000, recID); err != nil {

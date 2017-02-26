@@ -78,10 +78,14 @@ def pull_dlrs():
     import csv
     import MySQLdb as mdb
 
-    host = 'localhost'
-    user = 'kip'
-    passw = 'kip@db'
+    # host = 'localhost'
+    # user = 'kip'
+    # passw = 'kip@db'
     db = 'smsleopard'
+
+    host = "139.162.180.34"
+    user = "smsleopard"
+    passw = "@qgUaQwb99"
 
     db = mdb.connect(
         host=host, user=user, passwd=passw, db=db)
@@ -90,8 +94,8 @@ def pull_dlrs():
 
     sql = """
 select id, api_id from bsms_smsrecipient where api_id is not null
+and time_sent > '2017-02-21 00:00:00'
 """
-# and time_sent > '2016-02-20 00:00'
     cur.execute(sql)
 
     aids = []
@@ -102,7 +106,7 @@ select id, api_id from bsms_smsrecipient where api_id is not null
     with open('dlr_reports.csv', 'w') as fp:
         a = csv.writer(fp, delimiter=',')
         a.writerows(aids)
-    return 'Ready'
+    return 'file written'
 
 
 def cache_dlrs():
@@ -121,7 +125,7 @@ def push_dlrs():
     with open('dlr_reports.csv', 'r') as f:
         for x in f.readlines():
             dlrs.append(x.strip())
-    for x in dlrs[20]:
+    for x in dlrs:
         print send_dlr(x)
     return
 
@@ -160,14 +164,6 @@ def push_all_dlrs():
 
 
 if __name__ == '__main__':
-    # print send_inbox()
-    # for i in xrange(20):
-        # print send_inbox()
-        # print send_cache_req()
-        # print send_dlr()
-    # print push_dlrs()
-    # print push_rms_dlrs()
-    # print pull_dlrs()
+    print pull_dlrs()
+
     # print cache_dlrs()
-    print push_all_dlrs()
-    print "Done"

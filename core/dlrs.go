@@ -142,8 +142,6 @@ func saveDlr(req DlrRequest) {
 	stmt, err := common.DbCon.Prepare("insert into bsms_dlrstatus (status, reason, api_time, recipient_id) values (?, ?, ?, ?)")
 	if err != nil {
 		common.Logger.Println("Prepare Insert: ", err)
-		// requeue request
-		// resave api_id
 		return
 	}
 
