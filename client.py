@@ -159,8 +159,14 @@ def push_all_dlrs():
     return
 
 
+def send_optout():
+    payload = {
+        'phoneNumber': get_phone(), 'senderId': 'SMSLEOPARD'
+    }
+    return urllib2.urlopen(url + 'optout', urllib.urlencode(payload)).read()
+
+
 if __name__ == '__main__':
 
-    print pull_dlrs()
-
-    # print cache_dlrs()
+    for i in xrange(20):
+        print send_optout()
