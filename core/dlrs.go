@@ -48,6 +48,10 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 	aid := r.FormValue("id")
 	status := r.FormValue("status")
 
+	if strings.ToUpper(status) == "SUCCESS" {
+		status = "DELIVRD"
+	}
+
 	request := DlrRequest{
 		APIID: aid, Status: strings.ToUpper(status), TimeReceived: time.Now(),
 	}

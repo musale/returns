@@ -14,6 +14,7 @@ fake = Faker()
 
 
 def get_status():
+    return random.choice(['Success'])
     return random.choice(['Success', 'Failed', 'Rejected'])
 
 
@@ -136,7 +137,8 @@ def get_status_rm():
 def send_rms_dlr(idx):
     s = random.randint(3, 100)
     payload = {
-        'sStatus': get_status_rm(), 'reason': None,
+        # 'sStatus': get_status_rm(),
+        'sStatus': 'DELIVRD',
         'sMessageId': idx or md5('hello').hexdigest(),
         'sSender': 'SMSLEOPARD', 'sMobileNo': '727372285',
         'dtDone': str(datetime.now())[:19],
@@ -168,5 +170,8 @@ def send_optout():
 
 if __name__ == '__main__':
 
-    for i in xrange(20):
-        print send_optout()
+    print send_rms_dlr("cac3387b-3e9c-4547-85d2-ca4779c8ca81")
+    print send_dlr("1b795c5ec8c0c9a71808e7f0a15c6ea8")
+
+    # for i in xrange(20):
+    #     print send_optout()
