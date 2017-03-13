@@ -12,34 +12,29 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var err error
-
 func main() {
 
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file ", err)
-		return
+		common.Logger.Fatal("Error loading .env file ", err)
 	}
 
 	common.DbCon, err = sql.Open("mysql", os.Getenv("DB_USER")+":"+os.Getenv("DB_PASS")+"@tcp("+os.Getenv("DB_HOST")+":3306)/"+os.Getenv("DB_NAME")+"?charset=utf8")
 	if err != nil {
-		panic(err.Error())
+		common.Logger.Fatal("db error: ", err)
 	}
 	defer common.DbCon.Close()
 
 	// Test the connection to the database
 	err = common.DbCon.Ping()
 	if err != nil {
-		log.Fatal("Error DB ping ", err)
-		return
+		common.Logger.Fatal("Error DB ping ", err)
 	}
 
 	logFile, err := os.OpenFile(os.Getenv("LOG_DIR"), os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 
 	if err != nil {
-		log.Fatal("Log file error ", err)
-		return
+		common.Logger.Fatal("Log file error ", err)
 	}
 
 	defer logFile.Close()
@@ -55,6 +50,6 @@ func main() {
 	http.HandleFunc("/cache-dlr", core.CacheDlrPage)
 	http.HandleFunc("/inbox", core.InboxPage)
 	http.HandleFunc("/optout", core.OptoutPage)
-	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
 
+	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
 }

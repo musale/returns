@@ -154,7 +154,6 @@ func saveDlr(req DlrRequest) {
 	_, err = stmt.Exec(strings.ToUpper(req.Status), req.Reason, req.TimeReceived, recID)
 
 	if err != nil {
-
 		common.Logger.Println("Exec Insert: ", err)
 		return
 	}
