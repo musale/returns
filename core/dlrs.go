@@ -15,6 +15,7 @@ import (
 type DlrRequest struct {
 	APIID, Status, Reason string
 	TimeReceived          time.Time
+	Retries               int64
 }
 
 // DlrRequestInterface definition
@@ -41,7 +42,8 @@ func (request *DlrRequest) parseRequestMap() map[string]string {
 // ATDlrPage rendering
 func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != common.POST {
-		fmt.Fprintf(w, "Method Not Allowed")
+		w.Header().Set("Allow", "POST")
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -53,7 +55,8 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request := DlrRequest{
-		APIID: aid, Status: strings.ToUpper(status), TimeReceived: time.Now(),
+		APIID: aid, Status: strings.ToUpper(status),
+		TimeReceived: time.Now(), Retries: 0,
 	}
 
 	if status == "Failed" || status == "Rejected" {
@@ -64,15 +67,19 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 
 	go pushToQueue(&request)
 
+	w.WriteHeader(200)
+	w.Header().Set("Server", "returns")
+	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprintf(w, "ATDlr Received")
 	return
 }
 
-// DlrPage rendering
+// RMDlrPage rendering
 func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != common.POST {
-		fmt.Fprintf(w, "Method Not Allowed")
+		w.Header().Set("Allow", "POST")
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -80,13 +87,17 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 	status := r.FormValue("sStatus")
 
 	request := DlrRequest{
-		APIID: aid, Status: strings.ToUpper(status), TimeReceived: time.Now(),
+		APIID: aid, Status: strings.ToUpper(status),
+		TimeReceived: time.Now(), Retries: 0,
 	}
 
 	common.Logger.Println("RMDLR Request:", request)
 
 	go pushToQueue(&request)
 
+	w.WriteHeader(200)
+	w.Header().Set("Server", "returns")
+	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprintf(w, "RMDlr Received")
 	return
 }
