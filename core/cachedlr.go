@@ -15,6 +15,8 @@ type Response struct {
 
 func CacheDlrPage(w http.ResponseWriter, r *http.Request) {
 
+	// Todo: Print all POST requests received
+
 	APIID := r.FormValue("api_id")
 	recID := r.FormValue("recipient_id")
 

@@ -10,26 +10,29 @@ import (
 
 func OptoutPage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		fmt.Fprintf(w, "Method Not Allowed")
+		w.Header().Set("Allow", "POST")
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	sid := r.FormValue("senderId")
-	num := r.FormValue("phoneNumber")
+	senderID := r.FormValue("senderId")
+	phoneNumber := r.FormValue("phoneNumber")
 
-	if len(sid) == 0 || len(num) == 0 {
-		fmt.Fprintf(w, "Params not found")
+	if len(senderID) == 0 || len(phoneNumber) == 0 {
+		fmt.Fprintf(w, "Required Params not found")
 		return
 	}
 
 	request := map[string]string{
-		"sid": sid, "num": num,
+		"senderID": senderID, "phoneNumber": phoneNumber,
 	}
 
 	log.Println("Optout request: ", request)
 
 	saveOptout(request)
 
+	w.WriteHeader(200)
+	w.Header().Set("Server", "Returns")
 	fmt.Fprintf(w, "Optout Received")
 	return
 }
@@ -43,7 +46,7 @@ func saveOptout(req map[string]string) {
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(req["sid"], req["num"], time.Now())
+	_, err = stmt.Exec(req["senderID"], req["phoneNumber"], time.Now())
 
 	if err != nil {
 		log.Println("Cannot run insert optout", err)

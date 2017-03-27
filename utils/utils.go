@@ -102,13 +102,13 @@ func GetCosts(recs []APIRecipient, costs map[string]float64) ([]CostData, string
 			nrec.Status = "invalid_num"
 			nrec.Reason = "Number Invalid"
 		} else if rec.Status == "Could Not Send" {
-			nrec.Status = failed
+			nrec.Status = FAILED
 			nrec.Reason = "Rejected"
 		} else if rec.Status == "Insufficient Balance" {
-			nrec.Status = failed
+			nrec.Status = FAILED
 			nrec.Reason = "Insufficient Balance"
 		} else {
-			nrec.Status = failed
+			nrec.Status = FAILED
 			nrec.Reason = rec.Status
 		}
 		// cost, _ := strconv.ParseFloat(rec["cost"], 64)

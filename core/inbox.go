@@ -20,7 +20,8 @@ type Code struct {
 
 func InboxPage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		fmt.Fprintf(w, "Method Not Allowed")
+		w.Header().Set("Allow", "POST")
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -37,13 +38,41 @@ func InboxPage(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Inbox request: ", request)
 
-	go saveInbox(request)
+	go queueInbox(request)
 
+	w.WriteHeader(200)
+	w.Header().Set("Server", "Returns")
+	fmt.Fprintf(w, "RMDlr Received")
 	fmt.Fprintf(w, "Inbox Received")
 	return
 }
 
+func queueInbox(request) {
+	utils.RedisCon.Do("RPUSH", "inbox", request)
+	return
+}
+
+// ListenForInbox on redis
+func ListenForInbox() {
+
+	for {
+		request, err := redis.Strings(utils.RedisCon.Do("BLPOP", "inbox", 1))
+
+		if err != nil && err == redis.ErrNil {
+			time.Sleep(time.Second * 2)
+		}
+
+		for _, values := range request {
+			if values != "inbox" {
+				saveInbox(values)
+			}
+		}
+	}
+}
+
 func saveInbox(req map[string]string) {
+
+	// cache codes as redis hashes code:31390 type shared kip 1 vic 3 steph 7171
 
 	dets := getCodeDets(req["code"])
 

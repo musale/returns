@@ -21,7 +21,7 @@ func main() {
 
 	f, err := os.OpenFile(os.Getenv("LOG_FILE"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Log file error: ", err)
 	}
 	//defer to close when you're done with it, not because you think it's idiomatic!
 	defer f.Close()
@@ -47,6 +47,9 @@ func main() {
 
 	// Listen for Dlrs
 	go core.ListenForDlrs()
+	// Listen for Inbox
+	go core.ListenForInbox()
+	// Push Scheduled Dlrs to reqdy queue
 	go core.PushToQueue()
 
 	// Route set up

@@ -51,6 +51,8 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Todo: print all params received 
+
 	apiID := r.FormValue("id")
 	apiStatus := r.FormValue("status")
 
@@ -72,8 +74,7 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 	go pushToQueue(&request)
 
 	w.WriteHeader(200)
-	w.Header().Set("Server", "returns")
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Server", "Returns")
 	fmt.Fprintf(w, "ATDlr Received")
 	return
 }
@@ -87,8 +88,18 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	for key, values := range r.Form {   // range over map
+		for _, value := range values {    // range over []string
+			log.Println(key, value)
+		}
+	}
+
 	apiID := r.FormValue("sMessageId")
 	apiStatus := r.FormValue("sStatus")
+	// senderID := r.FormValue("sSender")
+	// phoneNumber := r.FormValue("sMobileNo")
+	// dateDone := r.FormValue("dtDone")
+	// dateSubmitted := r.FormValue("dtSubmit")
 
 	request := DlrRequest{
 		APIID: apiID, Status: strings.ToUpper(apiStatus),
@@ -100,8 +111,7 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 	go pushToQueue(&request)
 
 	w.WriteHeader(200)
-	w.Header().Set("Server", "returns")
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Server", "Returns")
 	fmt.Fprintf(w, "RMDlr Received")
 	return
 }

@@ -7,7 +7,7 @@ import (
 )
 
 //failed constant
-const failed string = "failed"
+const FAILED string = "failed"
 
 // POST method constant
 const POST string = "POST"
