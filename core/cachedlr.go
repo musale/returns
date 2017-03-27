@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/etowett/returns/common"
+	"github.com/etowett/returns/utils"
 )
 
 type Response struct {
@@ -15,15 +15,12 @@ type Response struct {
 
 func CacheDlrPage(w http.ResponseWriter, r *http.Request) {
 
-	c := common.RedisPool().Get()
-	defer c.Close()
-
 	APIID := r.FormValue("api_id")
 	recID := r.FormValue("recipient_id")
 
-	common.Logger.Println("Cache DLR request: api_id: ", APIID, " rec_id: ", recID)
+	log.Println("Cache DLR request: api_id: ", APIID, " rec_id: ", recID)
 
-	if _, err := c.Do("SETEX", APIID, 1209600000000000, recID); err != nil {
+	if _, err := utils.RedisCon.Do("SETEX", APIID, 1209600000000000, recID); err != nil {
 		log.Fatal("cache error ", err)
 	}
 

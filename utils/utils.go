@@ -1,4 +1,4 @@
-package common
+package utils
 
 import (
 	"encoding/json"
@@ -135,12 +135,9 @@ func RedisPool() *redis.Pool {
 
 // ScheduleTask creates a schedule for future
 func ScheduleTask(queue string, data string, delay int64) {
-	c := RedisPool().Get()
-	defer c.Close()
-
 	runAt := time.Now().Unix() + delay
 
-	c.Do("ZADD", queue, runAt, data)
+	RedisCon.Do("ZADD", queue, runAt, data)
 
 	return
 }

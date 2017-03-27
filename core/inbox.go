@@ -3,12 +3,13 @@ package core
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/etowett/returns/common"
+	"github.com/etowett/returns/utils"
 )
 
 type Code struct {
@@ -34,7 +35,7 @@ func InboxPage(w http.ResponseWriter, r *http.Request) {
 		"date": date, "aid": id,
 	}
 
-	common.Logger.Println("Inbox request: ", request)
+	log.Println("Inbox request: ", request)
 
 	go saveInbox(request)
 
@@ -47,7 +48,7 @@ func saveInbox(req map[string]string) {
 	dets := getCodeDets(req["code"])
 
 	if (Code{}) == dets {
-		common.Logger.Println("Inbox no code:", req)
+		log.Println("Inbox no code:", req)
 	} else {
 		req["code_id"] = dets.Id
 		if dets.Type == "DEDICATED" {
@@ -55,7 +56,7 @@ func saveInbox(req map[string]string) {
 				req["user_id"] = strconv.Itoa(int(dets.UserId.Int64))
 				go saveInboxData(req)
 			} else {
-				common.Logger.Println("Dedicated has no user:", req)
+				log.Println("Dedicated has no user:", req)
 			}
 		} else if dets.Type == "SHARED" {
 			go checkShared(req)
@@ -65,7 +66,7 @@ func saveInbox(req map[string]string) {
 }
 
 func getCodeDets(code string) Code {
-	db := common.DbCon
+	db := utils.DBCon
 	row := db.QueryRow("select id, code_type, user_id from callbacks_code where code=?", code)
 	// cd := new(Code)
 	cd := Code{}
@@ -80,7 +81,7 @@ func getCodeDets(code string) Code {
 
 func checkShared(req map[string]string) {
 
-	db := common.DbCon
+	db := utils.DBCon
 	cd := req["code_id"]
 	kw := strings.ToLower(strings.Fields(req["txt"])[0])
 	row := db.QueryRow("select user_id from callbacks_shared where code_id=? and keyword=?", cd, kw)
@@ -94,17 +95,17 @@ func checkShared(req map[string]string) {
 		req["kw"] = kw
 		go saveInboxData(req)
 	} else {
-		common.Logger.Println("Shared has no user: ", req)
+		log.Println("Shared has no user: ", req)
 	}
 	return
 }
 
 func saveInboxData(req map[string]string) {
 
-	db := common.DbCon
+	db := utils.DBCon
 	stmt, err1 := db.Prepare("insert into bsms_smsinbox(is_read, sender, short_code, api_id, message, user_id, deleted, api_date, insert_date) values (?, ?, ?, ?, ?, ?, ?, ?, ?)")
 	if err1 != nil {
-		common.Logger.Println("Couldn't prepare for inbox insert", err1)
+		log.Println("Couldn't prepare for inbox insert", err1)
 		return
 	}
 
@@ -113,13 +114,13 @@ func saveInboxData(req map[string]string) {
 	res, err := stmt.Exec(0, req["from"], req["code"], req["aid"], req["txt"], req["user_id"], 0, req["date"], time.Now())
 
 	if err != nil {
-		common.Logger.Println("Cannot run insert Inbox", err)
+		log.Println("Cannot run insert Inbox", err)
 		return
 	}
 
 	oid, _ := res.LastInsertId()
 
-	common.Logger.Println("Saved Inbox, id:", oid)
+	log.Println("Saved Inbox, id:", oid)
 	go sendAutoResponse(req)
 	return
 }

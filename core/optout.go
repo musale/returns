@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/etowett/returns/common"
+	"github.com/etowett/returns/utils"
 )
 
 func OptoutPage(w http.ResponseWriter, r *http.Request) {
@@ -26,7 +26,7 @@ func OptoutPage(w http.ResponseWriter, r *http.Request) {
 		"sid": sid, "num": num,
 	}
 
-	common.Logger.Println("Optout request: ", request)
+	log.Println("Optout request: ", request)
 
 	saveOptout(request)
 
@@ -35,9 +35,9 @@ func OptoutPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func saveOptout(req map[string]string) {
-	stmt, err := common.DbCon.Prepare("insert into callbacks_optout (senderid, phone, time_added) values (?, ?, ?)")
+	stmt, err := utils.DBCon.Prepare("insert into callbacks_optout (senderid, phone, time_added) values (?, ?, ?)")
 	if err != nil {
-		common.Logger.Println("Couldn't prepare for optout insert", err)
+		log.Println("Couldn't prepare for optout insert", err)
 		return
 	}
 
@@ -46,11 +46,11 @@ func saveOptout(req map[string]string) {
 	_, err = stmt.Exec(req["sid"], req["num"], time.Now())
 
 	if err != nil {
-		common.Logger.Println("Cannot run insert optout", err)
+		log.Println("Cannot run insert optout", err)
 		return
 	}
 
-	common.Logger.Println("Saved opt out: ", req)
+	log.Println("Saved opt out: ", req)
 
 	return
 }

@@ -3,11 +3,12 @@ package core
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/etowett/returns/common"
+	"github.com/etowett/returns/utils"
 	"github.com/garyburd/redigo/redis"
 )
 
@@ -26,7 +27,10 @@ type DlrRequestInterface interface {
 
 // Function to parse a DlrRequest item to string
 func (request *DlrRequest) parseRequestString() string {
-	requestJSON, _ := json.Marshal(request)
+	requestJSON, err := json.Marshal(request)
+	if err != nil {
+		log.Fatal("Dlr request to json string error", err)
+	}
 	return string(requestJSON)
 }
 
@@ -41,29 +45,29 @@ func (request *DlrRequest) parseRequestMap() map[string]string {
 
 // ATDlrPage rendering
 func ATDlrPage(w http.ResponseWriter, r *http.Request) {
-	if r.Method != common.POST {
+	if r.Method != utils.POST {
 		w.Header().Set("Allow", "POST")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	aid := r.FormValue("id")
-	status := r.FormValue("status")
+	apiID := r.FormValue("id")
+	apiStatus := r.FormValue("status")
 
-	if strings.ToUpper(status) == "SUCCESS" {
-		status = "DELIVRD"
+	if strings.ToUpper(apiStatus) == "SUCCESS" {
+		apiStatus = "DELIVRD"
 	}
 
 	request := DlrRequest{
-		APIID: aid, Status: strings.ToUpper(status),
+		APIID: apiID, Status: strings.ToUpper(apiStatus),
 		TimeReceived: time.Now(), Retries: 0,
 	}
 
-	if status == "Failed" || status == "Rejected" {
+	if apiStatus == "Failed" || apiStatus == "Rejected" {
 		request.Reason = r.FormValue("failureReason")
 	}
 
-	common.Logger.Println("ATDLR Request:", request)
+	log.Println("ATDLR Request:", request)
 
 	go pushToQueue(&request)
 
@@ -77,21 +81,21 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 // RMDlrPage rendering
 func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 
-	if r.Method != common.POST {
+	if r.Method != utils.POST {
 		w.Header().Set("Allow", "POST")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	aid := r.FormValue("sMessageId")
-	status := r.FormValue("sStatus")
+	apiID := r.FormValue("sMessageId")
+	apiStatus := r.FormValue("sStatus")
 
 	request := DlrRequest{
-		APIID: aid, Status: strings.ToUpper(status),
+		APIID: apiID, Status: strings.ToUpper(apiStatus),
 		TimeReceived: time.Now(), Retries: 0,
 	}
 
-	common.Logger.Println("RMDLR Request:", request)
+	log.Println("RMDLR Request:", request)
 
 	go pushToQueue(&request)
 
@@ -103,11 +107,8 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func pushToQueue(request ...DlrRequestInterface) {
-	pool := common.RedisPool().Get()
-	defer pool.Close()
-
 	for _, req := range request {
-		pool.Do("RPUSH", "dlrs", req.parseRequestString())
+		utils.RedisCon.Do("RPUSH", "dlrs", req.parseRequestString())
 	}
 
 	return
@@ -115,13 +116,10 @@ func pushToQueue(request ...DlrRequestInterface) {
 
 // ListenForDlrs on redis
 func ListenForDlrs() {
-	pool := common.RedisPool().Get()
-	defer pool.Close()
-
 	var dlrItem DlrRequest
 
 	for {
-		request, err := redis.Strings(pool.Do("BLPOP", "dlrs", 1))
+		request, err := redis.Strings(utils.RedisCon.Do("BLPOP", "dlrs", 1))
 
 		if err != nil && err == redis.ErrNil {
 			time.Sleep(time.Second * 2)
@@ -131,32 +129,34 @@ func ListenForDlrs() {
 			if values != "dlrs" {
 				err := json.Unmarshal([]byte(values), &dlrItem)
 				if err != nil {
-					common.Logger.Println("req Unmarshal", err)
+					log.Println("req Unmarshal", err)
 				}
-				saveDlr(dlrItem)
-				// updateDlr(dlrItem)
+				saveDlr(&dlrItem)
 			}
 		}
 	}
 }
 
-func saveDlr(req DlrRequest) {
-	// get from redis string where api_id
-	pool := common.RedisPool().Get()
-	defer pool.Close()
+func saveDlr(req *DlrRequest) {
 
-	recID, err := redis.String(pool.Do("GET", req.APIID))
+	recID, err := redis.String(utils.RedisCon.Do("GET", req.APIID))
 
 	if err != nil && err == redis.ErrNil {
-		common.Logger.Println("APIID Not Found:", req)
+		log.Println("APIID Not Found:", req)
+		if req.Retries >= 4 {
+			saveHangingDlr(req)
+		} else {
+			req.Retries++
+			utils.ScheduleTask("dlr_sched", req.parseRequestString(), req.Retries*5*60)
+		}
 		return
 	}
 
-	pool.Do("DEL", req.APIID)
+	utils.RedisCon.Do("DEL", req.APIID)
 
-	stmt, err := common.DbCon.Prepare("insert into bsms_dlrstatus (status, reason, api_time, recipient_id) values (?, ?, ?, ?)")
+	stmt, err := utils.DBCon.Prepare("insert into bsms_dlrstatus (status, reason, api_time, recipient_id) values (?, ?, ?, ?)")
 	if err != nil {
-		common.Logger.Println("Prepare Insert: ", err)
+		log.Println("Prepare Insert: ", err)
 		return
 	}
 
@@ -165,28 +165,66 @@ func saveDlr(req DlrRequest) {
 	_, err = stmt.Exec(strings.ToUpper(req.Status), req.Reason, req.TimeReceived, recID)
 
 	if err != nil {
-		common.Logger.Println("Exec Insert: ", err)
+		log.Println("Exec Insert: ", err)
 		return
 	}
-	common.Logger.Println("Dlr saved: ", req.APIID)
+	log.Println("Dlr saved: ", req.APIID)
 	return
 }
 
-func updateDlr(req DlrRequest) {
-	stmt, err := common.DbCon.Prepare("update bsms_smsrecipient set status=?, reason=?, api_time=? where api_id=?")
+func saveHangingDlr(req *DlrRequest) {
+	stmt, err := utils.DBCon.Prepare("insert into bsms_hangingdlrs (status, reason, api_time) values (?, ?, ?)")
 	if err != nil {
-		common.Logger.Fatal("Prepare Insert: ", err)
+		log.Println("Prepare hanging dlr Insert: ", err)
 		return
 	}
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(strings.ToUpper(req.Status), req.Reason, req.TimeReceived, req.APIID)
+	_, err = stmt.Exec(strings.ToUpper(req.Status), req.Reason, req.TimeReceived)
 
 	if err != nil {
-		common.Logger.Fatal("Exec Update: ", err)
+		log.Println("Exec hangingdlr Insert: ", err)
 		return
 	}
-	common.Logger.Println("Dlr saved: ", req.APIID)
-	return
+	log.Println("HangingDlr saved: ", req.APIID)
+}
+
+// PushToQueue requeue scheduled dlrs
+func PushToQueue() {
+
+	for {
+		if _, err := utils.RedisCon.Do("WATCH", "dlr_sched"); err != nil {
+			log.Println("WATCH error: ", err)
+			return
+		}
+
+		// delta := time.Now().Add(time.Hour * 3).Unix()
+		delta := time.Now().Unix()
+
+		tasks, err := redis.Strings(
+			utils.RedisCon.Do("ZRANGEBYSCORE", "dlr_sched", 0, delta))
+
+		if err != nil {
+			log.Println("sched Get error: ", err)
+			return
+		}
+
+		if len(tasks) > 0 {
+			for _, task := range tasks {
+				utils.RedisCon.Send("MULTI")
+				utils.RedisCon.Send("RPUSH", "dlrs", task)
+				utils.RedisCon.Send("ZREM", "dlrs_sched", task)
+				_, err := utils.RedisCon.Do("EXEC")
+				if err != nil {
+					log.Fatal("exec error: ", err)
+				}
+			}
+		} else {
+			if _, err := utils.RedisCon.Do("UNWATCH"); err != nil {
+				log.Println("UNWATCH error: ", err)
+			}
+			time.Sleep(time.Second * 10)
+		}
+	}
 }

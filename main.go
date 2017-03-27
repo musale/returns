@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/etowett/returns/common"
 	"github.com/etowett/returns/core"
+	"github.com/etowett/returns/utils"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
 )
@@ -16,33 +16,38 @@ func main() {
 
 	err := godotenv.Load()
 	if err != nil {
-		common.Logger.Fatal("Error loading .env file ", err)
+		log.Fatal("Error loading .env file ", err)
 	}
 
-	common.DbCon, err = sql.Open("mysql", os.Getenv("DB_USER")+":"+os.Getenv("DB_PASS")+"@tcp("+os.Getenv("DB_HOST")+":3306)/"+os.Getenv("DB_NAME")+"?charset=utf8")
+	f, err := os.OpenFile(os.Getenv("LOG_FILE"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
 	if err != nil {
-		common.Logger.Fatal("db error: ", err)
+		log.Fatal(err)
 	}
-	defer common.DbCon.Close()
+	//defer to close when you're done with it, not because you think it's idiomatic!
+	defer f.Close()
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	//set output of logs to f
+	log.SetOutput(f)
+
+	utils.DBCon, err = sql.Open("mysql", os.Getenv("DB_USER")+":"+os.Getenv("DB_PASS")+"@tcp("+os.Getenv("DB_HOST")+":3306)/"+os.Getenv("DB_NAME")+"?charset=utf8")
+	if err != nil {
+		log.Fatal("db error: ", err)
+	}
+	defer utils.DBCon.Close()
 
 	// Test the connection to the database
-	err = common.DbCon.Ping()
+	err = utils.DBCon.Ping()
 	if err != nil {
-		common.Logger.Fatal("Error DB ping ", err)
+		log.Fatal("Error DB ping ", err)
 	}
 
-	logFile, err := os.OpenFile(os.Getenv("LOG_DIR"), os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
-
-	if err != nil {
-		common.Logger.Fatal("Log file error ", err)
-	}
-
-	defer logFile.Close()
-
-	common.Logger = log.New(logFile, "", log.Lshortfile|log.Ldate|log.Ltime)
+	// Common redis connection object
+	utils.RedisCon = utils.RedisPool().Get()
+	defer utils.RedisCon.Close()
 
 	// Listen for Dlrs
 	go core.ListenForDlrs()
+	go core.PushToQueue()
 
 	// Route set up
 	http.HandleFunc("/at-dlrs", core.ATDlrPage)
