@@ -82,7 +82,7 @@ def pull_dlrs():
     host = 'localhost'
     user = 'kip'
     passw = 'kip@db'
-    db = 'smsleopard'
+    db = 'xsmsl'
 
     db = mdb.connect(
         host=host, user=user, passwd=passw, db=db)
@@ -170,8 +170,13 @@ def send_optout():
 
 if __name__ == '__main__':
 
-    print send_rms_dlr("cac3387b-3e9c-4547-85d2-ca4779c8ca81")
-    print send_dlr("1b795c5ec8c0c9a71808e7f0a15c6ea8")
+    print pull_dlrs()
+    print cache_dlrs()
+
+    print push_all_dlrs()
+
+    # print send_rms_dlr('10f61d55-f863-45f6-8cfd-ea862abd102a')
+    # print send_dlr('5a2637fc-4b0e-48c0-be2b-1dab0ddcd2dd')
 
     # for i in xrange(20):
     #     print send_optout()

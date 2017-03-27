@@ -14,6 +14,8 @@ type Response struct {
 }
 
 func CacheDlrPage(w http.ResponseWriter, r *http.Request) {
+	redisCon := utils.RedisPool().Get()
+	defer redisCon.Close()
 
 	// Todo: Print all POST requests received
 
@@ -22,7 +24,7 @@ func CacheDlrPage(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Cache DLR request: api_id: ", APIID, " rec_id: ", recID)
 
-	if _, err := utils.RedisCon.Do("SETEX", APIID, 1209600000000000, recID); err != nil {
+	if _, err := redisCon.Do("SETEX", APIID, 1209600000000000, recID); err != nil {
 		log.Fatal("cache error ", err)
 	}
 

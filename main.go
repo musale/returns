@@ -41,10 +41,6 @@ func main() {
 		log.Fatal("Error DB ping ", err)
 	}
 
-	// Common redis connection object
-	utils.RedisCon = utils.RedisPool().Get()
-	defer utils.RedisCon.Close()
-
 	// Listen for Dlrs
 	go core.ListenForDlrs()
 	// Listen for Inbox
