@@ -14,10 +14,10 @@ type Response struct {
 }
 
 func CacheDlrPage(w http.ResponseWriter, r *http.Request) {
+	// Todo: Print all POST requests received
+
 	redisCon := utils.RedisPool().Get()
 	defer redisCon.Close()
-
-	// Todo: Print all POST requests received
 
 	APIID := r.FormValue("api_id")
 	recID := r.FormValue("recipient_id")

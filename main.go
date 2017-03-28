@@ -23,7 +23,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Log file error: ", err)
 	}
-	//defer to close when you're done with it, not because you think it's idiomatic!
+	//defer to close when you're done with it
 	defer f.Close()
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	//set output of logs to f

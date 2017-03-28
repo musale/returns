@@ -51,7 +51,7 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Todo: print all params received 
+	// Todo: print all params received
 
 	apiID := r.FormValue("id")
 	apiStatus := r.FormValue("status")
@@ -154,13 +154,14 @@ func saveDlr(req *DlrRequest) {
 	recID, err := redis.String(redisCon.Do("GET", req.APIID))
 
 	if err != nil && err == redis.ErrNil {
-		if req.Retries >= 4 {
+		if req.Retries >= 6 {
 			log.Println("Save Hanging DLR:", req)
 			saveHangingDlr(req)
 		} else {
 			log.Println("Sched DLR for retry:", req)
 			req.Retries++
-			utils.ScheduleTask("dlr_sched", req.parseRequestString(), req.Retries*5*60)
+			utils.ScheduleTask("dlr_sched", req.parseRequestString(), 5*60)
+			// utils.ScheduleTask("dlr_sched", req.parseRequestString(), req.Retries*5*60)
 		}
 		return
 	}
