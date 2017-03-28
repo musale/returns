@@ -90,17 +90,26 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 
 	apiID := r.FormValue("sMessageId")
 	apiStatus := r.FormValue("sStatus")
-	// senderID := r.FormValue("sSender")
-	// phoneNumber := r.FormValue("sMobileNo")
-	// dateDone := r.FormValue("dtDone")
-	// dateSubmitted := r.FormValue("dtSubmit")
+
+	extra := map[string]string{
+		"senderID":      r.FormValue("sSender"),
+		"phoneNumber":   r.FormValue("sMobileNo"),
+		"dateDone":      r.FormValue("dtDone"),
+		"dateSubmitted": r.FormValue("dtSubmit"),
+	}
 
 	request := DlrRequest{
 		APIID: apiID, Status: strings.ToUpper(apiStatus),
 		TimeReceived: time.Now(), Retries: 0,
 	}
 
+	if request.Status == "UNDELIV" {
+		request.Status = "FAILED"
+		request.Reason = "DeliveryFailure"
+	}
+
 	log.Println("RMDLR Request:", request)
+	log.Println("RMDLR extra:", extra)
 
 	pushToQueue(&request)
 
