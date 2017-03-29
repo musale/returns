@@ -170,7 +170,6 @@ func saveDlr(req *DlrRequest) {
 			log.Println("Sched DLR for retry:", req)
 			req.Retries++
 			utils.ScheduleTask("dlr_sched", req.parseRequestString(), 5*60)
-			// utils.ScheduleTask("dlr_sched", req.parseRequestString(), req.Retries*5*60)
 		}
 		return
 	}

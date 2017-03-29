@@ -8,7 +8,7 @@ from hashlib import md5
 
 from faker import Faker
 
-# url = "http://callbacks.xsmsl.com/"
+# url = "http://callbacks.smsleopard.com/"
 url = "http://127.0.0.1:8017/"
 fake = Faker()
 
@@ -170,13 +170,13 @@ def send_optout():
 
 if __name__ == '__main__':
 
-    print pull_dlrs()
-    print cache_dlrs()
+    # print pull_dlrs()
+    # print cache_dlrs()
 
-    print push_all_dlrs()
+    # print push_all_dlrs()
 
-    # print send_rms_dlr('10f61d55-f863-45f6-8cfd-ea862abd102a')
-    # print send_dlr('5a2637fc-4b0e-48c0-be2b-1dab0ddcd2dd')
+    print send_rms_dlr('10f61d55-f863-45f6-8cfd-ea862abd102a')
+    print send_dlr('5a2637fc-4b0e-48c0-be2b-1dab0ddcd2dd')
 
     # for i in xrange(20):
     #     print send_optout()
