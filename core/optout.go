@@ -2,12 +2,18 @@ package core
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"time"
-	"log"
 
 	"github.com/etowett/returns/utils"
 )
+
+type OptOutRequest struct {
+	SenderID string    `json:"sender_id"`
+	Phone    string    `json:"phone_number"`
+	Time     time.Time `json:"time"`
+}
 
 func OptoutPage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
@@ -24,13 +30,24 @@ func OptoutPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	request := map[string]string{
-		"senderID": senderID, "phoneNumber": phoneNumber,
+	request := OptOutRequest{
+		SenderID: senderID, Phone: phoneNumber, Time: time.Now(),
 	}
 
 	log.Println("Optout request: ", request)
 
-	saveOptout(request)
+	redisCon := utils.RedisPool().Get()
+	defer redisCon.Close()
+
+	jsonReq, err := json.Marshal(request)
+
+	if err != nil {
+		log.Println("Optout request: ", err)
+	}
+
+	if err := redisCon.Do("RPUSH", "optout", string(jsonReq)); err != nil {
+		log.Println("optout queue error: ", err)
+	}
 
 	w.WriteHeader(200)
 	w.Header().Set("Server", "Returns")
@@ -38,7 +55,33 @@ func OptoutPage(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func saveOptout(req map[string]string) {
+// ListenForOptOut on redis
+func ListenForOptOut() {
+	redisCon := utils.RedisPool().Get()
+	defer redisCon.Close()
+
+	var optOutReq OptOutRequest
+
+	for {
+		request, err := redis.Strings(redisCon.Do("BLPOP", "inbox", 1))
+
+		if err != nil && err == redis.ErrNil {
+			time.Sleep(time.Second * 2)
+		}
+
+		for _, values := range request {
+			if values != "optout" {
+				err := json.Unmarshal([]byte(values), &optOutReq)
+				if err != nil {
+					log.Println("req Unmarshal", err)
+				}
+				saveOptout(&optOutReq)
+			}
+		}
+	}
+}
+
+func saveOptout(req *OptOutRequest) {
 	stmt, err := utils.DBCon.Prepare("insert into callbacks_optout (senderid, phone, time_added) values (?, ?, ?)")
 	if err != nil {
 		log.Println("Couldn't prepare for optout insert", err)
@@ -47,7 +90,7 @@ func saveOptout(req map[string]string) {
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(req["senderID"], req["phoneNumber"], time.Now())
+	_, err = stmt.Exec(req.SenderID, req.Phone, req.Time)
 
 	if err != nil {
 		log.Println("Cannot run insert optout", err)

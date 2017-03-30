@@ -55,9 +55,13 @@ func main() {
 
 	for rows.Next() {
 		var code Code
-		err := rows.Scan(&code.CodeID, &code.CodeType, &code.UserID, &code.Code)
+		var userID sql.NullInt64
+		err := rows.Scan(&code.CodeID, &code.CodeType, &userID, &code.Code)
 		if err != nil {
 			log.Fatal("error scan out", err)
+		}
+		if userID.Valid {
+			code.UserID = userID.Int64
 		}
 		codes = append(codes, code)
 	}

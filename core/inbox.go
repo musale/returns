@@ -45,15 +45,6 @@ func InboxPage(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Inbox request: ", request)
 
-	queueInbox(request)
-
-	w.WriteHeader(200)
-	w.Header().Set("Server", "Returns")
-	fmt.Fprintf(w, "Inbox Received")
-	return
-}
-
-func queueInbox(request InboxRequest) {
 	redisCon := utils.RedisPool().Get()
 	defer redisCon.Close()
 
@@ -63,7 +54,13 @@ func queueInbox(request InboxRequest) {
 		log.Println("scheduled to json: ", err)
 	}
 
-	redisCon.Do("RPUSH", "inbox", string(jsonReq))
+	if err := redisCon.Do("RPUSH", "inbox", string(jsonReq)); err != nil {
+		log.Println("inbox queue error: ", err)
+	}
+
+	w.WriteHeader(200)
+	w.Header().Set("Server", "Returns")
+	fmt.Fprintf(w, "Inbox Received")
 	return
 }
 
@@ -82,7 +79,7 @@ func ListenForInbox() {
 		}
 
 		for _, values := range request {
-			if values != "dlrs" {
+			if values != "inbox" {
 				err := json.Unmarshal([]byte(values), &inboxObj)
 				if err != nil {
 					log.Println("req Unmarshal", err)
@@ -97,7 +94,9 @@ func saveInbox(req *InboxRequest) {
 	redisCon := utils.RedisPool().Get()
 	defer redisCon.Close()
 
-	codeType, err := redis.String(redisCon.Do("HGET", req.Code, "code_type"))
+	keyName := "code:" + req.Code
+
+	codeType, err := redis.String(redisCon.Do("HGET", keyName, "code_type"))
 
 	if err != nil && err == redis.ErrNil {
 		// save in hanging messages
@@ -105,7 +104,7 @@ func saveInbox(req *InboxRequest) {
 	}
 
 	if codeType == "DEDICATED" {
-		codeUser, err := redis.String(redisCon.Do("HGET", req.Code, "user_id"))
+		codeUser, err := redis.String(redisCon.Do("HGET", keyName, "user_id"))
 
 		if err != nil && err == redis.ErrNil {
 			// save in hanging messages
@@ -118,7 +117,7 @@ func saveInbox(req *InboxRequest) {
 	} else {
 		codeKeyword := strings.ToLower(strings.Fields(req.Message)[0])
 
-		codeUser, err := redis.String(redisCon.Do("HGET", req.Code, codeKeyword))
+		codeUser, err := redis.String(redisCon.Do("HGET", keyName, codeKeyword))
 
 		if err != nil && err == redis.ErrNil {
 			// save in hanging messages

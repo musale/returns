@@ -2,5 +2,5 @@
 *.log
 *.log.*
 .env
-.pyc
+*.pyc
 dlr_reports.csv

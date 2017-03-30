@@ -45,6 +45,8 @@ func main() {
 	go core.ListenForDlrs()
 	// Listen for Inbox
 	go core.ListenForInbox()
+	// Listen for optout
+	go core.ListenForOptOut()
 	// Push Scheduled Dlrs to reqdy queue
 	go core.PushToQueue()
 
