@@ -84,6 +84,8 @@ func ListenForInbox() {
 				if err != nil {
 					log.Println("req Unmarshal", err)
 				}
+				// handle error
+				// err := saveInbox(&inboxObj)
 				saveInbox(&inboxObj)
 			}
 		}
@@ -100,6 +102,7 @@ func saveInbox(req *InboxRequest) {
 
 	if err != nil && err == redis.ErrNil {
 		// save in hanging messages
+		// short code is unassigned
 		return
 	}
 

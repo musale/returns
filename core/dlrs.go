@@ -250,4 +250,5 @@ func PushToQueue() {
 			time.Sleep(time.Second * 10)
 		}
 	}
+	return
 }
