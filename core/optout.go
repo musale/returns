@@ -75,17 +75,21 @@ func ListenForOptOut() {
 				if err != nil {
 					log.Println("req Unmarshal", err)
 				}
-				saveOptout(&optOutReq)
+				err := saveOptout(&optOutReq)
+				if err != nil {
+					log.Println("saveOptout", err)
+				}
 			}
 		}
 	}
+	return
 }
 
-func saveOptout(req *OptOutRequest) {
+func saveOptout(req *OptOutRequest) error {
 	stmt, err := utils.DBCon.Prepare("insert into callbacks_optout (senderid, phone, time_added) values (?, ?, ?)")
 	if err != nil {
 		log.Println("Couldn't prepare for optout insert", err)
-		return
+		return err
 	}
 
 	defer stmt.Close()
@@ -94,10 +98,10 @@ func saveOptout(req *OptOutRequest) {
 
 	if err != nil {
 		log.Println("Cannot run insert optout", err)
-		return
+		return err
 	}
 
 	log.Println("Saved opt out: ", req)
 
-	return
+	return nil
 }
