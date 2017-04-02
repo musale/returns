@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/etowett/returns/utils"
@@ -84,15 +85,17 @@ func ListenForInbox() {
 				if err != nil {
 					log.Println("req Unmarshal", err)
 				}
-				// handle error
-				// err := saveInbox(&inboxObj)
-				saveInbox(&inboxObj)
+				err := saveInbox(&inboxObj)
+				if err != nil {
+					log.Println("save inbox", err)
+				}
 			}
 		}
 	}
+	return
 }
 
-func saveInbox(req *InboxRequest) {
+func saveInbox(req *InboxRequest) error {
 	redisCon := utils.RedisPool().Get()
 	defer redisCon.Close()
 
@@ -131,6 +134,7 @@ func saveInbox(req *InboxRequest) {
 			Message: req.Message, UserID: codeUser, APIDate: req.Date,
 		})
 	}
+	return nil
 
 }
 

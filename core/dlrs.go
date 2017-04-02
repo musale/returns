@@ -51,7 +51,8 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Todo: print all params received
+	r.ParseForm()
+	log.Println("ATDlrPage: ", r.Form)
 
 	apiID := r.FormValue("id")
 	apiStatus := r.FormValue("status")
@@ -88,15 +89,11 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	r.ParseForm()
+	log.Println("RMDlrPage: ", r.Form)
+
 	apiID := r.FormValue("sMessageId")
 	apiStatus := r.FormValue("sStatus")
-
-	extra := map[string]string{
-		"senderID":      r.FormValue("sSender"),
-		"phoneNumber":   r.FormValue("sMobileNo"),
-		"dateDone":      r.FormValue("dtDone"),
-		"dateSubmitted": r.FormValue("dtSubmit"),
-	}
 
 	request := DlrRequest{
 		APIID: apiID, Status: strings.ToUpper(apiStatus),
@@ -109,7 +106,6 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("RMDLR Request:", request)
-	log.Println("RMDLR extra:", extra)
 
 	pushToQueue(&request)
 
