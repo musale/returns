@@ -27,7 +27,20 @@ type InboxRequest struct {
 	MessageID string
 }
 
+type InboxData struct {
+	From    string
+	Code    string
+	APIID   string
+	Message string
+	UserID  string
+	APIDate string
+}
+
+// InboxPage callback for incoming messages
 func InboxPage(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	log.Println("InboxPage: ", r.Form)
+
 	if r.Method != "POST" {
 		w.Header().Set("Allow", "POST")
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -43,8 +56,6 @@ func InboxPage(w http.ResponseWriter, r *http.Request) {
 	request := InboxRequest{
 		From: from, To: to, Message: text, Date: date, MessageID: id,
 	}
-
-	log.Println("Inbox request: ", request)
 
 	redisCon := utils.RedisPool().Get()
 	defer redisCon.Close()
@@ -70,7 +81,6 @@ func ListenForInbox() {
 	defer redisCon.Close()
 
 	var inboxObj InboxRequest
-
 	for {
 		request, err := redis.Strings(redisCon.Do("BLPOP", "inbox", 1))
 
@@ -115,10 +125,13 @@ func saveInbox(req *InboxRequest) error {
 			// save in hanging messages
 			return nil
 		}
-		saveMessage(&InboxData{
-			From: req.From, Code: req.From, APIID: req.APIID,
+		err = saveMessage(&InboxData{
+			From: req.From, Code: req.To, APIID: req.MessageID,
 			Message: req.Message, UserID: codeUser, APIDate: req.Date,
 		})
+		if err != nil {
+			log.Println("saveMessage: ", err)
+		}
 	} else {
 		codeKeyword := strings.ToLower(strings.Fields(req.Message)[0])
 
@@ -128,37 +141,40 @@ func saveInbox(req *InboxRequest) error {
 			// save in hanging messages
 			return nil
 		}
-		saveMessage(&InboxData{
-			From: req.From, Code: req.From, APIID: req.APIID,
+		err = saveMessage(&InboxData{
+			From: req.From, Code: req.From, APIID: req.MessageID,
 			Message: req.Message, UserID: codeUser, APIDate: req.Date,
 		})
+		if err != nil {
+			log.Println("saveMessage: ", err)
+		}
 	}
 	return nil
 }
 
-func saveInboxData(req *InboxData) {
+func saveMessage(req *InboxData) error {
 
 	stmt, err := utils.DBCon.Prepare("insert into bsms_smsinbox(is_read, sender, short_code, api_id, message, user_id, deleted, api_date, insert_date) values (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-	if err1 != nil {
-		log.Println("Couldn't prepare for inbox insert", err1)
-		return
+	if err != nil {
+		log.Println("Couldn't prepare for inbox insert", err)
+		return err
 	}
 
 	defer stmt.Close()
 
 	res, err := stmt.Exec(
-		0, reqFrom, req.Code, req.APIID, req.Message, req.UserID, 0,
+		0, req.From, req.Code, req.APIID, req.Message, req.UserID, 0,
 		req.APIDate, time.Now(),
 	)
 
 	if err != nil {
 		log.Println("Cannot run insert Inbox", err)
-		return
+		return err
 	}
 
 	oid, _ := res.LastInsertId()
 
 	log.Println("Saved Inbox, id:", oid)
-	go sendAutoResponse(req)
-	return
+	// go sendAutoResponse(req)
+	return nil
 }

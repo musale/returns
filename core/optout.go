@@ -1,12 +1,14 @@
 package core
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/etowett/returns/utils"
+	"github.com/garyburd/redigo/redis"
 )
 
 type OptOutRequest struct {
@@ -45,7 +47,7 @@ func OptoutPage(w http.ResponseWriter, r *http.Request) {
 		log.Println("Optout request: ", err)
 	}
 
-	if err := redisCon.Do("RPUSH", "optout", string(jsonReq)); err != nil {
+	if _, err := redisCon.Do("RPUSH", "optout", string(jsonReq)); err != nil {
 		log.Println("optout queue error: ", err)
 	}
 
@@ -75,7 +77,7 @@ func ListenForOptOut() {
 				if err != nil {
 					log.Println("req Unmarshal", err)
 				}
-				err := saveOptout(&optOutReq)
+				err = saveOptout(&optOutReq)
 				if err != nil {
 					log.Println("saveOptout", err)
 				}

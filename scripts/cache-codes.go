@@ -97,5 +97,7 @@ func main() {
 		}
 	}
 
+	// cache autoresponses
+
 	log.Fatal("Redis populated successfully")
 }

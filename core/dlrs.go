@@ -70,8 +70,6 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 		request.Reason = r.FormValue("failureReason")
 	}
 
-	log.Println("ATDLR Request:", request)
-
 	err := pushToQueue(&request)
 
 	if err != nil {
