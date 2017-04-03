@@ -72,10 +72,13 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("ATDLR Request:", request)
 
-	pushToQueue(&request)
+	err := pushToQueue(&request)
+
+	if err != nil {
+		log.Println("ATpushToQueue err: ", err)
+	}
 
 	w.WriteHeader(200)
-	w.Header().Set("Server", "Returns")
 	fmt.Fprintf(w, "ATDlr Received")
 	return
 }
@@ -105,9 +108,11 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 		request.Reason = "DeliveryFailure"
 	}
 
-	log.Println("RMDLR Request:", request)
+	err := pushToQueue(&request)
 
-	pushToQueue(&request)
+	if err != nil {
+		log.Println("RMpushToQueue err: ", err)
+	}
 
 	w.WriteHeader(200)
 	w.Header().Set("Server", "Returns")
@@ -115,15 +120,17 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func pushToQueue(request ...DlrRequestInterface) {
+func pushToQueue(request ...DlrRequestInterface) error {
 	redisCon := utils.RedisPool().Get()
 	defer redisCon.Close()
 
 	for _, req := range request {
-		redisCon.Do("RPUSH", "dlrs", req.parseRequestString())
+		if _, err := redisCon.Do("RPUSH", "dlrs", req.parseRequestString()); err != nil {
+			return err
+		}
 	}
 
-	return
+	return nil
 }
 
 // ListenForDlrs on redis

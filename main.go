@@ -23,10 +23,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Log file error: ", err)
 	}
-	//defer to close when you're done with it
 	defer f.Close()
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	//set output of logs to f
 	log.SetOutput(f)
 
 	utils.DBCon, err = sql.Open("mysql", os.Getenv("DB_USER")+":"+os.Getenv("DB_PASS")+"@tcp("+os.Getenv("DB_HOST")+":3306)/"+os.Getenv("DB_NAME")+"?charset=utf8")

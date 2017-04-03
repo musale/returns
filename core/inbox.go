@@ -55,12 +55,11 @@ func InboxPage(w http.ResponseWriter, r *http.Request) {
 		log.Println("scheduled to json: ", err)
 	}
 
-	if err := redisCon.Do("RPUSH", "inbox", string(jsonReq)); err != nil {
+	if _, err := redisCon.Do("RPUSH", "inbox", string(jsonReq)); err != nil {
 		log.Println("inbox queue error: ", err)
 	}
 
 	w.WriteHeader(200)
-	w.Header().Set("Server", "Returns")
 	fmt.Fprintf(w, "Inbox Received")
 	return
 }
@@ -85,7 +84,7 @@ func ListenForInbox() {
 				if err != nil {
 					log.Println("req Unmarshal", err)
 				}
-				err := saveInbox(&inboxObj)
+				err = saveInbox(&inboxObj)
 				if err != nil {
 					log.Println("save inbox", err)
 				}
@@ -99,14 +98,14 @@ func saveInbox(req *InboxRequest) error {
 	redisCon := utils.RedisPool().Get()
 	defer redisCon.Close()
 
-	keyName := "code:" + req.Code
+	keyName := "code:" + req.From
 
 	codeType, err := redis.String(redisCon.Do("HGET", keyName, "code_type"))
 
 	if err != nil && err == redis.ErrNil {
 		// save in hanging messages
 		// short code is unassigned
-		return
+		return err
 	}
 
 	if codeType == "DEDICATED" {
@@ -114,10 +113,10 @@ func saveInbox(req *InboxRequest) error {
 
 		if err != nil && err == redis.ErrNil {
 			// save in hanging messages
-			return
+			return nil
 		}
 		saveMessage(&InboxData{
-			From: req.From, Code: req.Code, APIID: req.APIID,
+			From: req.From, Code: req.From, APIID: req.APIID,
 			Message: req.Message, UserID: codeUser, APIDate: req.Date,
 		})
 	} else {
@@ -127,21 +126,19 @@ func saveInbox(req *InboxRequest) error {
 
 		if err != nil && err == redis.ErrNil {
 			// save in hanging messages
-			return
+			return nil
 		}
 		saveMessage(&InboxData{
-			From: req.From, Code: req.Code, APIID: req.APIID,
+			From: req.From, Code: req.From, APIID: req.APIID,
 			Message: req.Message, UserID: codeUser, APIDate: req.Date,
 		})
 	}
 	return nil
-
 }
 
 func saveInboxData(req *InboxData) {
 
-	db := utils.DBCon
-	stmt, err1 := db.Prepare("insert into bsms_smsinbox(is_read, sender, short_code, api_id, message, user_id, deleted, api_date, insert_date) values (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+	stmt, err := utils.DBCon.Prepare("insert into bsms_smsinbox(is_read, sender, short_code, api_id, message, user_id, deleted, api_date, insert_date) values (?, ?, ?, ?, ?, ?, ?, ?, ?)")
 	if err1 != nil {
 		log.Println("Couldn't prepare for inbox insert", err1)
 		return
