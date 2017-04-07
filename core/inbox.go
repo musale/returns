@@ -175,6 +175,42 @@ func saveMessage(req *InboxData) error {
 	oid, _ := res.LastInsertId()
 
 	log.Println("Saved Inbox, id:", oid)
-	// go sendAutoResponse(req)
+	err = sendAutoResponse(req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func sendAutoResponse(req) error {
+	redisCon := utils.RedisPool().Get()
+	defer redisCon.Close()
+
+	keyString := "auto:" + req.Keyword, +":" + req.UserID
+	autoResp, err := redisCon.Do("GET", keyString)
+
+	if err != nil {
+		if err == redis.ErrNil {
+			return nil
+		} else {
+			return err
+		}
+	}
+	var KeyVal map[string]string
+	err = json.Unmarshal(keyVal, autoResp)
+	if err != nil {
+		return err
+	}
+	log.Println(keyVal)
+	userBal, err := getUserBalance(req.UserID)
+
+	if userBal >= 1 {
+		// send autoresp sms
+		// deduct money
+		// save sent sms
+		// cache the message for dlr
+	} else {
+		log.Println("User has no bal for autoresponse")
+	}
 	return nil
 }
