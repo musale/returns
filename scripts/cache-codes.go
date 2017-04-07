@@ -22,6 +22,13 @@ type SharedCode struct {
 	Keyword string
 }
 
+type AutoResponse struct {
+	SenderID string
+	Keyword  string
+	Message  string
+	UserID   string
+}
+
 func main() {
 	err := godotenv.Load("../.env")
 	if err != nil {
@@ -97,7 +104,40 @@ func main() {
 		}
 	}
 
-	// cache autoresponses
+	stmt, err = dbObj.Prepare(
+		"select senderid, `key`, message, user_id from callbacks_autoresponse",
+	)
+
+	rows, err = stmt.Query()
+
+	if err != nil {
+		log.Fatal("query select out", err)
+	}
+
+	var auto []AutoResponse
+	for rows.Next() {
+		var aut AutoResponse
+		err = rows.Scan(
+			&aut.SenderID, &aut.Keyword, &aut.Message, &aut.UserID,
+		)
+		if err != nil {
+			log.Fatal("error scan out", err)
+		}
+
+		auto = append(auto, aut)
+	}
+
+	for _, aut := range AutoResponse {
+		keyString := "auto:" + aut.Keyword + ":" + aut.UserID
+		keyVal := map[string]string{
+			"message": aut.Message, "sender_id": aut.SenderID,
+		}
+		jsonString, err := json.Marshal(keyVal)
+		if err != nil {
+			log.Fatal("error json marshal: ", err)
+		}
+		redisCon.Do("SET", keyString, jsonString)
+	}
 
 	log.Fatal("Redis populated successfully")
 }
