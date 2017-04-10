@@ -237,11 +237,23 @@ func sendAutoResponse(req) error {
 			data = utils.DummyCosts(req.From)
 		}
 
-		err := saveSentSMS(SMSData{})
+		costData := data.CostData[0]
+
+		recID, err := saveSentSMS(SMSData{
+			SenderID: keyVal["sender_id"], Message: keyVal["message"],
+			SendTime: time.Now(), ProcessTime: time.Now(), ReplyCode: "",
+			SendType: "AUTO_RESP", UserID: req.UserID, Cost: data.TotalCost,
+			Currency: "KES", CostData: costData,
+		})
 		if err != nil {
 			return err
 		}
-		// cache the message for dlr
+		if len(costData.APIID) > 1 {
+			if _, err := redisCon.Do("SETEX", costData.APIID, 1209600000000000, recID); err != nil {
+				log.Fatal("cache error ", err)
+				return err
+			}
+		}
 	} else {
 		log.Println("User has no bal for autoresponse")
 	}
@@ -332,10 +344,9 @@ func getNet(number string) string {
 	return net
 }
 
-func saveSentSMS(req *SMSData) error {
+func saveSentSMS(req *SMSData) (string, error) {
 	tx, err := utils.DBCon.Begin()
 	if err != nil {
-		log.Fatal("DB begin error")
 		return err
 	}
 	stmt, err := utils.DBCon.Prepare(
@@ -344,7 +355,6 @@ func saveSentSMS(req *SMSData) error {
 			"sender_id, deleted) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 	)
 	if err != nil {
-		log.Fatal("Couldn't prepare for outbox insert", err)
 		return err
 	}
 	defer stmt.Close()
@@ -354,13 +364,11 @@ func saveSentSMS(req *SMSData) error {
 		req.SendTime, 0, req.ProcessTime, req.SendType, req.UserID, 0,
 	)
 	if err != nil {
-		log.Fatal("Cannot run insert statement", err)
 		return err
 	}
 
 	outboxID, err := res.LastInsertId()
 	if err != nil {
-		log.Fatal("outbox insert id error", err)
 		return err
 	}
 
@@ -371,7 +379,6 @@ func saveSentSMS(req *SMSData) error {
 				"values(?, ?, ?, ?, ?, ?)",
 		)
 		if err != nil {
-			log.Fatal("Couldn't prepare cash_trans insert", err)
 			return err
 		}
 		defer stmt.Close()
@@ -380,41 +387,33 @@ func saveSentSMS(req *SMSData) error {
 			req.ProcessTime, req.UserID,
 		)
 		if err != nil {
-			log.Fatal("Cannot insert cash_trans", err)
 			return err
 		}
 	}
 
-	if len(req.Recipients) > 0 {
-		for _, recChunk := range chunkRec(req.Recipients, 5000) {
+	stmt, err = utils.DBCon.Prepare(
+		"insert into bsms_smsrecipient (message_content, is_sent, number," +
+			"status,reason, api_id, cost, cost_currency, time_sent, " +
+			"message_id, user_id, time_processed) values (?, ?, ?, ?, ?," +
+			" ?, ?, ?, ?, ?, ?, ?)",
+	)
 
-			recStr := "insert into bsms_smsrecipient (message_content, is_sent, number, status,reason, api_id, cost, cost_currency, time_sent, message_id, user_id, time_processed) values "
+	if err != nil {
+		return err
+	}
+	res, err = stmt.Exec(
+		"", 1, req.CostData.Number, rec.CostData.Status,
+		rec.CostData.Reason, rec.CostData.APIID, rec.CostData.Cost,
+		req.Currency, req.SendTime, outboxID, req.UserID, req.ProcessTime,
+	)
 
-			recVals := []interface{}{}
-			for _, rec := range recChunk {
-				recStr += "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
-				recVals = append(
-					recVals, rec.Message, 1, rec.CostData.Number,
-					rec.CostData.Status, rec.CostData.Reason,
-					rec.CostData.APIID, rec.CostData.Cost, req.Currency,
-					req.SendTime, outboxID, req.UserID, rec.ProcessTime,
-				)
-			}
-			recStr = strings.TrimSuffix(recStr, ",")
-			stmt, err = utils.DBCon.Prepare(recStr)
-
-			if err != nil {
-				log.Fatal("normal rec prepare error: ", err)
-				return err
-			}
-			_, err = stmt.Exec(recVals...)
-
-			if err != nil {
-				log.Fatal("rec insert error: ", err)
-				return err
-			}
-		}
+	if err != nil {
+		return err
+	}
+	recID, err := res.LastInsertId()
+	if err != nil {
+		return "", err
 	}
 	tx.Commit()
-	return nil
+	return recID, nil
 }
