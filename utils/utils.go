@@ -118,6 +118,18 @@ func GetCosts(recs []APIRecipient, costs map[string]float64) ([]CostData, string
 	return rData, fmt.Sprintf("%.2f", mcost)
 }
 
+// DummyCosts data when api fail to return
+func DummyCosts(to string) Costs {
+	var costData []CostData
+	for _, number := range strings.Split(to, ",") {
+		costData = append(costData, CostData{
+			Number: number, Reason: "Could Not Send", Cost: 0.00, APIID: "",
+			Status: "Failed",
+		})
+	}
+	return Costs{TotalCost: 0.00, CostData: costData}
+}
+
 // RedisPool returns a redis pool
 func RedisPool() *redis.Pool {
 	return &redis.Pool{

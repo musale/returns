@@ -100,7 +100,7 @@ func ListenForInbox() {
 				}
 				err = saveInbox(&inboxObj)
 				if err != nil {
-					log.Println("save inbox", err)
+					log.Println("saveInbox", err)
 				}
 			}
 		}
@@ -224,16 +224,23 @@ func sendAutoResponse(req) error {
 		recsData := utils.PushToAt(
 			req.From, keyVal["message"], keyVal["sender_id"])
 
-		// send autoresp sms
+		var data utils.Costs
 		if len(recsData.Recipients) > 0 {
-			msgCost := getMessageCost(req.From, keyVal["message"], req.UserID)
+			msgCost, err := getMessageCost(
+				req.From, keyVal["message"], req.UserID)
+			if err != nil {
+				return err
+			}
 			recCosts := map[string]float64{req.From: msgCost}
 			data = utils.GetCosts(recsData.Recipients, recCosts)
 		} else {
 			data = utils.DummyCosts(req.From)
 		}
-		// deduct money
-		// save sent sms
+
+		err := saveSentSMS(SMSData{})
+		if err != nil {
+			return err
+		}
 		// cache the message for dlr
 	} else {
 		log.Println("User has no bal for autoresponse")
@@ -255,9 +262,159 @@ func getUserBalance(userID string) (int, error) {
 
 func getMessageCost(
 	number string, message string, userID string,
-) (float64, error) {
-	// get user cost
-	// get num pages for message
-	// get cost for that number
-	return 1.0, nil
+) (string, error) {
+	pricing := map[string]map[string]float64{
+		"0.40": map[string]float64{
+			"safaricom": 0.5, "airtel": 0.7, "yu": 1.0, "orange": 1.0,
+			"equitel": 1.0, "other": 3.0, "ug": 1.5, "tz": 1.5, "sud": 2.0,
+			"zm": 3.0,
+		},
+		"0.60": map[string]float64{
+			"safaricom": 0.6, "airtel": 0.8, "yu": 1.0, "orange": 1.0,
+			"equitel": 1.0, "other": 4.0, "ug": 1.6, "tz": 1.6, "sud": 3.0,
+			"zm": 3.0,
+		},
+		"0.80": map[string]float64{
+			"safaricom": 0.8, "airtel": 1.0, "yu": 1.0, "orange": 1.0,
+			"equitel": 1.0, "other": 4.0, "ug": 1.8, "tz": 1.8, "sud": 3.0,
+			"zm": 3.0,
+		},
+		"1.00": map[string]float64{
+			"safaricom": 1.0, "airtel": 1.0, "yu": 1.0, "orange": 1.0,
+			"equitel": 1.0, "other": 4.0, "ug": 2.0, "tz": 2.0, "sud": 3.0,
+			"zm": 3.0,
+		},
+		"5.00": map[string]float64{
+			"safaricom": 1.5, "airtel": 1.5, "yu": 1.5, "orange": 1.5,
+			"equitel": 2.0, "other": 5.0, "ug": 5.0, "tz": 5.0, "sud": 5.0,
+			"zm": 3.0,
+		},
+	}
+	userTarrif, err := getUserCost(userID)
+	if err != nil {
+		return 0.0, err
+	}
+
+	net := getNet(number)
+	pages := math.Ceil(float64(len(message)) / 160)
+	cost := pricing[userTarrif][net] * pages
+	return fmt.Sprintf("%.2f", cost), nil
+}
+
+func getUserCost(userID string) (string, error) {
+	var userPrice float64
+	err = utils.DBCon.QueryRow("select user_price from accounts_userprofile where user_id=?", userID).Scan(&userPrice)
+
+	if err != nil {
+		log.Println("error query user price")
+		return 0.0, err
+	}
+
+	return fmt.Sprintf("%.2f", userPrice), nil
+}
+
+func getNet(number string) string {
+	var net string
+	kenNet := map[string]string{
+		"1": "safaricom", "2": "safaricom", "3": "airtel", "4": "other",
+		"5": "yu", "6": "equitel", "7": "orange", "8": "airtel",
+		"9": "safaricom", "0": "safaricom",
+	}
+	if number[0:3] == "254" {
+		net = kenNet[number[4]]
+	} else if number[0:3] == "256" {
+		net = "ug"
+	} else if number[0:3] == "255" {
+		net = "tz"
+	} else if number[0:3] == "211" {
+		net = "sud"
+	}
+	return net
+}
+
+func saveSentSMS(req *SMSData) error {
+	tx, err := utils.DBCon.Begin()
+	if err != nil {
+		log.Fatal("DB begin error")
+		return err
+	}
+	stmt, err := utils.DBCon.Prepare(
+		"insert into bsms_smsoutbox (is_done, is_busy, senderid, content, " +
+			"reply_code, time_sent, is_sched, process_time, send_type, " +
+			"sender_id, deleted) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+	)
+	if err != nil {
+		log.Fatal("Couldn't prepare for outbox insert", err)
+		return err
+	}
+	defer stmt.Close()
+
+	res, err := stmt.Exec(
+		1, 1, req.SenderID, req.Message, req.ReplyCode,
+		req.SendTime, 0, req.ProcessTime, req.SendType, req.UserID, 0,
+	)
+	if err != nil {
+		log.Fatal("Cannot run insert statement", err)
+		return err
+	}
+
+	outboxID, err := res.LastInsertId()
+	if err != nil {
+		log.Fatal("outbox insert id error", err)
+		return err
+	}
+
+	if req.Cost > 0 {
+		stmt, err = utils.DBCon.Prepare(
+			"insert into billing_cashtransaction (trans_type, ipn_log_id, " +
+				"trans_amount, trans_currency, trans_date, user_id) " +
+				"values(?, ?, ?, ?, ?, ?)",
+		)
+		if err != nil {
+			log.Fatal("Couldn't prepare cash_trans insert", err)
+			return err
+		}
+		defer stmt.Close()
+		_, err = stmt.Exec(
+			"OUTGOING_MESSAGE", outboxID, req.Cost, req.Currency,
+			req.ProcessTime, req.UserID,
+		)
+		if err != nil {
+			log.Fatal("Cannot insert cash_trans", err)
+			return err
+		}
+	}
+
+	if len(req.Recipients) > 0 {
+		for _, recChunk := range chunkRec(req.Recipients, 5000) {
+
+			recStr := "insert into bsms_smsrecipient (message_content, is_sent, number, status,reason, api_id, cost, cost_currency, time_sent, message_id, user_id, time_processed) values "
+
+			recVals := []interface{}{}
+			for _, rec := range recChunk {
+				recStr += "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+				recVals = append(
+					recVals, rec.Message, 1, rec.CostData.Number,
+					rec.CostData.Status, rec.CostData.Reason,
+					rec.CostData.APIID, rec.CostData.Cost, req.Currency,
+					req.SendTime, outboxID, req.UserID, rec.ProcessTime,
+				)
+			}
+			recStr = strings.TrimSuffix(recStr, ",")
+			stmt, err = utils.DBCon.Prepare(recStr)
+
+			if err != nil {
+				log.Fatal("normal rec prepare error: ", err)
+				return err
+			}
+			_, err = stmt.Exec(recVals...)
+
+			if err != nil {
+				log.Fatal("rec insert error: ", err)
+				return err
+			}
+		}
+	}
+	tx.Commit()
+	return nil
 }
