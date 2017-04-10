@@ -38,14 +38,14 @@ type InboxData struct {
 
 // InboxPage callback for incoming messages
 func InboxPage(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
+	_ = r.ParseForm()
 	log.Println("InboxPage: ", r.Form)
 
-	if r.Method != "POST" {
-		w.Header().Set("Allow", "POST")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
+	// if r.Method != "POST" {
+	// 	w.Header().Set("Allow", "POST")
+	// 	w.WriteHeader(http.StatusMethodNotAllowed)
+	// 	return
+	// }
 
 	from := r.FormValue("from")
 	to := r.FormValue("to")
@@ -84,8 +84,12 @@ func ListenForInbox() {
 	for {
 		request, err := redis.Strings(redisCon.Do("BLPOP", "inbox", 1))
 
-		if err != nil && err == redis.ErrNil {
-			time.Sleep(time.Second * 2)
+		if err != nil {
+			if err == redis.ErrNil {
+				time.Sleep(time.Second * 2)
+			} else {
+				log.Println("ListenForInbox: ", err)
+			}
 		}
 
 		for _, values := range request {
@@ -112,18 +116,26 @@ func saveInbox(req *InboxRequest) error {
 
 	codeType, err := redis.String(redisCon.Do("HGET", keyName, "code_type"))
 
-	if err != nil && err == redis.ErrNil {
-		// save in hanging messages
-		// short code is unassigned
-		return err
+	if err != nil {
+		if err == redis.ErrNil {
+			// save in hanging messages
+			// short code is unassigned
+			return nil
+		} else {
+			return err
+		}
 	}
 
 	if codeType == "DEDICATED" {
 		codeUser, err := redis.String(redisCon.Do("HGET", keyName, "user_id"))
 
-		if err != nil && err == redis.ErrNil {
-			// save in hanging messages
-			return nil
+		if err != nil {
+			if err == redis.ErrNil {
+				// save in hanging messages
+				return nil
+			} else {
+				return err
+			}
 		}
 		err = saveMessage(&InboxData{
 			From: req.From, Code: req.To, APIID: req.MessageID,
@@ -204,8 +216,22 @@ func sendAutoResponse(req) error {
 	log.Println(keyVal)
 	userBal, err := getUserBalance(req.UserID)
 
+	if err != nil {
+		return err
+	}
+
 	if userBal >= 1 {
+		recsData := utils.PushToAt(
+			req.From, keyVal["message"], keyVal["sender_id"])
+
 		// send autoresp sms
+		if len(recsData.Recipients) > 0 {
+			msgCost := getMessageCost(req.From, keyVal["message"], req.UserID)
+			recCosts := map[string]float64{req.From: msgCost}
+			data = utils.GetCosts(recsData.Recipients, recCosts)
+		} else {
+			data = utils.DummyCosts(req.From)
+		}
 		// deduct money
 		// save sent sms
 		// cache the message for dlr
@@ -213,4 +239,25 @@ func sendAutoResponse(req) error {
 		log.Println("User has no bal for autoresponse")
 	}
 	return nil
+}
+
+func getUserBalance(userID string) (int, error) {
+	var userBal int
+	err = utils.DBCon.QueryRow("select sum(trans_amount) from billing_cashtransaction where user_id=?", userID).Scan(&userBal)
+
+	if err != nil {
+		log.Println("error query messageid using batch")
+		return 0, err
+	}
+
+	return userBal, nil
+}
+
+func getMessageCost(
+	number string, message string, userID string,
+) (float64, error) {
+	// get user cost
+	// get num pages for message
+	// get cost for that number
+	return 1.0, nil
 }

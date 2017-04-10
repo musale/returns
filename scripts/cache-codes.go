@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"log"
 	"os"
 
@@ -127,7 +128,7 @@ func main() {
 		auto = append(auto, aut)
 	}
 
-	for _, aut := range AutoResponse {
+	for _, aut := range auto {
 		keyString := "auto:" + aut.Keyword + ":" + aut.UserID
 		keyVal := map[string]string{
 			"message": aut.Message, "sender_id": aut.SenderID,
@@ -136,8 +137,11 @@ func main() {
 		if err != nil {
 			log.Fatal("error json marshal: ", err)
 		}
-		redisCon.Do("SET", keyString, jsonString)
+		if _, err = redisCon.Do("SET", keyString, jsonString); err != nil {
+			log.Fatal("Redis set error: ", err)
+		}
 	}
 
-	log.Fatal("Redis populated successfully")
+	log.Println("Redis populated successfully")
+	return
 }
