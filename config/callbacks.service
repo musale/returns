@@ -6,8 +6,8 @@ ExecStart=/apps/gocode/bin/returns
 
 WorkingDirectory=/apps/gocode/bin
 
-User=ekt
-Group=users
+User=focus
+Group=focus
 
 Restart=always
 
