@@ -83,6 +83,12 @@ def setup():
         "cp %s/returns/config/callbacks.service " +
         "/etc/systemd/system/callbacks.service" % (live_dir,)
     )
+    with cd("/var/log/"):
+        if not exists("returns"):
+            sudo("mkdir returns")
+            sudo("chown %s:%s returns" % (user, user,))
+        with cd("returns"):
+            run("touch returns.log")
     restart_returns()
     return
 

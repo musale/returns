@@ -2,8 +2,8 @@ package utils
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -37,11 +37,17 @@ type CostData struct {
 	Cost   float64
 }
 
-// PushToAt pushes to the api
-func PushToAt(to string, msg string, sid string) []APIRecipient {
+// Costs for used amount
+type Costs struct {
+	TotalCost float64    `json:"total_cost"`
+	CostData  []CostData `json:"cost_data"`
+}
+
+// PushToAt common function to interface with API
+func PushToAt(to string, msg string, sid string) MessageData {
 	client := http.Client{}
 	form := url.Values{}
-	form.Add("username", "etowett")
+	form.Add("username", os.Getenv("AFT_USER"))
 	form.Add("message", msg)
 	form.Add("to", to)
 	form.Add("from", sid)
@@ -49,73 +55,72 @@ func PushToAt(to string, msg string, sid string) []APIRecipient {
 		"POST", os.Getenv("AFT_URL"), strings.NewReader(form.Encode()))
 
 	if err != nil {
-		fmt.Println("Request Error: ", err)
-		return []APIRecipient{}
+		log.Println("AFTError: ", err)
+		return MessageData{"request error", []APIRecipient{}}
 	}
 
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Content-Length", strconv.Itoa(len(form.Encode())))
 	req.Header.Add("Accept", "Application/json")
-	req.Header.Add("apikey", "abcd1234")
+	req.Header.Add("apikey", os.Getenv("AFT_KEY"))
 
 	resp, err := client.Do(req)
 
 	if err != nil {
-		fmt.Println("Do Error: ", err)
-		return []APIRecipient{}
+		log.Println("AFTError: ", err)
+		return MessageData{"Do error", []APIRecipient{}}
 	}
 
 	defer resp.Body.Close()
 
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 
-	fmt.Println("AFT: ", string(body))
+	if err != nil {
+		log.Println("AFTError: ", err)
+		return MessageData{"readall error", []APIRecipient{}}
+	}
+
+	log.Println("AFT: ", string(body))
 
 	retData := make(map[string]MessageData)
 
 	err = json.Unmarshal(body, &retData)
 
 	if err != nil {
-		fmt.Println("Marshal Error: ", err)
-		return []APIRecipient{}
+		log.Println("api resp marshall: ", err)
+		return MessageData{"unmarshall error", []APIRecipient{}}
 	}
 
-	return retData["SMSMessageData"].Recipients
+	return retData["SMSMessageData"]
 }
 
-// GetCosts gets the cost
-func GetCosts(recs []APIRecipient, costs map[string]float64) ([]CostData, string) {
-	var rData []CostData
-	mcost := 0.00
+// GetCosts format API result to something I can use
+func GetCosts(recs []APIRecipient, costs map[string]float64) Costs {
+	var costData []CostData
+	messageCost := 0.00
 	for _, rec := range recs {
-		nrec := CostData{
-			Number: rec.Number, Reason: "", Cost: 0.00, APIID: "",
-		}
+		recData := CostData{Number: rec.Number, Cost: 0.00, Status: "FAILED"}
 		if rec.Status == "Success" {
-			nrec.Status = "sent"
-			nrec.APIID = rec.MessageID
-			nrec.Cost = costs[rec.Number]
+			recData.Status = "SENT"
+			recData.APIID = rec.MessageID
+			recData.Cost = costs[rec.Number]
 		} else if rec.Status == "User In BlackList" {
-			nrec.Status = "opted_out"
-			nrec.Reason = "User Opted Out"
+			recData.Status = "OPTED_OUT"
+			recData.Reason = "User Opted Out"
 		} else if rec.Status == "Invalid Phone Number" {
-			nrec.Status = "invalid_num"
-			nrec.Reason = "Number Invalid"
+			recData.Status = "INVALID_NUM"
+			recData.Reason = "Number Invalid"
 		} else if rec.Status == "Could Not Send" {
-			nrec.Status = FAILED
-			nrec.Reason = "Rejected"
+			recData.Reason = "Failed to Send"
 		} else if rec.Status == "Insufficient Balance" {
-			nrec.Status = FAILED
-			nrec.Reason = "Insufficient Balance"
+			recData.Reason = "Insufficient Balance"
 		} else {
-			nrec.Status = FAILED
-			nrec.Reason = rec.Status
+			recData.Reason = rec.Status
 		}
-		// cost, _ := strconv.ParseFloat(rec["cost"], 64)
-		rData = append(rData, nrec)
-		mcost += nrec.Cost
+		costData = append(costData, recData)
+		messageCost += recData.Cost
 	}
-	return rData, fmt.Sprintf("%.2f", mcost)
+	return Costs{TotalCost: messageCost, CostData: costData}
 }
 
 // DummyCosts data when api fail to return

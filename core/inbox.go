@@ -34,6 +34,26 @@ type InboxData struct {
 	Message string
 	UserID  string
 	APIDate string
+	Keyword string
+}
+
+type AutoRespData struct {
+	Keyword string
+	UserID  string
+	Number  string
+}
+
+type SMSData struct {
+	SenderID    string
+	Message     string
+	SendTime    time.Time
+	ProcessTime time.Time
+	ReplyCode   string
+	SendType    string
+	UserID      string
+	Cost        string
+	Currency    string
+	CostData    utils.CostData
 }
 
 // InboxPage callback for incoming messages
@@ -112,7 +132,7 @@ func saveInbox(req *InboxRequest) error {
 	redisCon := utils.RedisPool().Get()
 	defer redisCon.Close()
 
-	keyName := "code:" + req.From
+	keyName := "code:" + req.To
 
 	codeType, err := redis.String(redisCon.Do("HGET", keyName, "code_type"))
 
@@ -139,7 +159,8 @@ func saveInbox(req *InboxRequest) error {
 		}
 		err = saveMessage(&InboxData{
 			From: req.From, Code: req.To, APIID: req.MessageID,
-			Message: req.Message, UserID: codeUser, APIDate: req.Date,
+			Keyword: req.To, Message: req.Message, UserID: codeUser,
+			APIDate: req.Date,
 		})
 		if err != nil {
 			log.Println("saveMessage: ", err)
@@ -156,6 +177,7 @@ func saveInbox(req *InboxRequest) error {
 		err = saveMessage(&InboxData{
 			From: req.From, Code: req.From, APIID: req.MessageID,
 			Message: req.Message, UserID: codeUser, APIDate: req.Date,
+			Keyword: codeKeyword,
 		})
 		if err != nil {
 			log.Println("saveMessage: ", err)
@@ -187,19 +209,21 @@ func saveMessage(req *InboxData) error {
 	oid, _ := res.LastInsertId()
 
 	log.Println("Saved Inbox, id:", oid)
-	err = sendAutoResponse(req)
+	err = sendAutoResponse(&AutoRespData{
+		Keyword: req.Keyword, UserID: req.UserID, Number: req.From,
+	})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func sendAutoResponse(req) error {
+func sendAutoResponse(req *AutoRespData) error {
 	redisCon := utils.RedisPool().Get()
 	defer redisCon.Close()
 
-	keyString := "auto:" + req.Keyword, +":" + req.UserID
-	autoResp, err := redisCon.Do("GET", keyString)
+	keyString := "auto:" + req.Keyword + ":" + req.UserID
+	autoResp, err := redis.String(redisCon.Do("GET", keyString))
 
 	if err != nil {
 		if err == redis.ErrNil {
@@ -208,8 +232,8 @@ func sendAutoResponse(req) error {
 			return err
 		}
 	}
-	var KeyVal map[string]string
-	err = json.Unmarshal(keyVal, autoResp)
+	var keyVal map[string]string
+	err = json.Unmarshal([]byte(autoResp), &keyVal)
 	if err != nil {
 		return err
 	}
@@ -222,19 +246,19 @@ func sendAutoResponse(req) error {
 
 	if userBal >= 1 {
 		recsData := utils.PushToAt(
-			req.From, keyVal["message"], keyVal["sender_id"])
+			req.Number, keyVal["message"], keyVal["sender_id"])
 
 		var data utils.Costs
 		if len(recsData.Recipients) > 0 {
 			msgCost, err := getMessageCost(
-				req.From, keyVal["message"], req.UserID)
+				req.Number, keyVal["message"], req.UserID)
 			if err != nil {
 				return err
 			}
-			recCosts := map[string]float64{req.From: msgCost}
+			recCosts := map[string]float64{req.Number: msgCost}
 			data = utils.GetCosts(recsData.Recipients, recCosts)
 		} else {
-			data = utils.DummyCosts(req.From)
+			data = utils.DummyCosts(req.Number)
 		}
 
 		costData := data.CostData[0]
@@ -274,7 +298,7 @@ func getUserBalance(userID string) (int, error) {
 
 func getMessageCost(
 	number string, message string, userID string,
-) (string, error) {
+) (float64, error) {
 	pricing := map[string]map[string]float64{
 		"0.40": map[string]float64{
 			"safaricom": 0.5, "airtel": 0.7, "yu": 1.0, "orange": 1.0,
@@ -310,7 +334,8 @@ func getMessageCost(
 	net := getNet(number)
 	pages := math.Ceil(float64(len(message)) / 160)
 	cost := pricing[userTarrif][net] * pages
-	return fmt.Sprintf("%.2f", cost), nil
+	// return fmt.Sprintf("%.2f", cost), nil
+	return cost, nil
 }
 
 func getUserCost(userID string) (string, error) {
