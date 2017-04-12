@@ -6,7 +6,7 @@ from fabric.contrib.files import exists
 from fabric.colors import green
 
 env.use_ssh_config = True
-env.hosts = ["mpesa"]
+env.hosts = ["sms"]
 
 local_dir = "/home/ekt/go/src/github.com/etowett/"
 live_dir = "/home/focus/go/src/github.com/etowett/"
@@ -16,9 +16,7 @@ tmp_f = "%s/returns.tar.gz" % tmp
 user = "focus"
 
 
-def stage():
-    print(green("Deploying to stage"))
-    env.hosts = ['sms']
+print(green("Deploying to stage"))
 
 
 def deploy():
@@ -67,6 +65,7 @@ def setup():
         run("echo \"export GOPATH=$HOME/go\" >> /home/focus/.bashrc")
     run("go get github.com/etowett/returns")
     with cd('%sreturns' % live_dir):
+        run('git pull origin master')
         run('go get')
         run('go build')
         run('go install')
@@ -80,7 +79,7 @@ def setup():
             run("cp %sreturns/env.sample .env" % (live_dir,))
             run("cp /home/focus/go/bin/returns .")
     sudo(
-        "cp %sreturns/config/callbacks.service " +
+        "cp %sreturns/config/callbacks.service "
         "/etc/systemd/system/callbacks.service" % (live_dir,)
     )
     with cd("/var/log/"):
@@ -99,5 +98,5 @@ def stop_returns():
 
 
 def restart_returns():
-    sudo('systemctl restart returns')
+    sudo('systemctl restart callbacks')
     return
