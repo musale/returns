@@ -23,7 +23,7 @@ def stage():
 
 def deploy():
     print(green("pulling changes"))
-    with cd("%s/returns" % (live_dir,)):
+    with cd("%sreturns" % (live_dir,)):
         run("git pull origin master")
         run("go get")
         run("go build")
@@ -52,7 +52,7 @@ def xdeploy():
         if exists('returns'):
             run('rm -rf returns')
         run('tar -xzf %s' % tmp_f)
-    with cd('%s/returns' % live_dir):
+    with cd('%sreturns' % live_dir):
         run('go get')
         run('go build')
         run('go install')
@@ -66,7 +66,7 @@ def setup():
         run("mkdir /home/focus/go")
         run("echo \"export GOPATH=$HOME/go\" >> /home/focus/.bashrc")
     run("go get github.com/etowett/returns")
-    with cd('%s/returns' % live_dir):
+    with cd('%sreturns' % live_dir):
         run('go get')
         run('go build')
         run('go install')
@@ -77,10 +77,10 @@ def setup():
         if not exists("returns"):
             run("mkdir returns")
         with cd("returns"):
-            run("cp %s/returns/env.sample .env" % (live_dir,))
+            run("cp %sreturns/env.sample .env" % (live_dir,))
             run("cp /home/focus/go/bin/returns .")
     sudo(
-        "cp %s/returns/config/callbacks.service " +
+        "cp %sreturns/config/callbacks.service " +
         "/etc/systemd/system/callbacks.service" % (live_dir,)
     )
     with cd("/var/log/"):

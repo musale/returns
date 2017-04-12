@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,12 +15,14 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
+// Code short code struct
 type Code struct {
-	Id     string
+	ID     string
 	Type   string
-	UserId sql.NullInt64
+	UserID sql.NullInt64
 }
 
+// InboxRequest received as a callback
 type InboxRequest struct {
 	From      string
 	To        string
@@ -27,6 +31,7 @@ type InboxRequest struct {
 	MessageID string
 }
 
+// InboxData payload of inbox paras
 type InboxData struct {
 	From    string
 	Code    string
@@ -37,12 +42,14 @@ type InboxData struct {
 	Keyword string
 }
 
+// AutoRespData payload of an autoresponse
 type AutoRespData struct {
 	Keyword string
 	UserID  string
 	Number  string
 }
 
+// SMSData for autoresponse
 type SMSData struct {
 	SenderID    string
 	Message     string
@@ -51,21 +58,18 @@ type SMSData struct {
 	ReplyCode   string
 	SendType    string
 	UserID      string
-	Cost        string
+	Cost        float64
 	Currency    string
 	CostData    utils.CostData
 }
 
 // InboxPage callback for incoming messages
 func InboxPage(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
+	err := r.ParseForm()
+	if err != nil {
+		log.Println("ParseForm: ", err)
+	}
 	log.Println("InboxPage: ", r.Form)
-
-	// if r.Method != "POST" {
-	// 	w.Header().Set("Allow", "POST")
-	// 	w.WriteHeader(http.StatusMethodNotAllowed)
-	// 	return
-	// }
 
 	from := r.FormValue("from")
 	to := r.FormValue("to")
@@ -86,12 +90,15 @@ func InboxPage(w http.ResponseWriter, r *http.Request) {
 		log.Println("scheduled to json: ", err)
 	}
 
-	if _, err := redisCon.Do("RPUSH", "inbox", string(jsonReq)); err != nil {
+	if _, err = redisCon.Do("RPUSH", "inbox", string(jsonReq)); err != nil {
 		log.Println("inbox queue error: ", err)
 	}
 
 	w.WriteHeader(200)
-	fmt.Fprintf(w, "Inbox Received")
+	_, err = fmt.Fprintf(w, "Inbox Received")
+	if err != nil {
+		log.Println("Response Error: ", err)
+	}
 	return
 }
 
@@ -263,7 +270,7 @@ func sendAutoResponse(req *AutoRespData) error {
 
 		costData := data.CostData[0]
 
-		recID, err := saveSentSMS(SMSData{
+		recID, err := saveSentSMS(&SMSData{
 			SenderID: keyVal["sender_id"], Message: keyVal["message"],
 			SendTime: time.Now(), ProcessTime: time.Now(), ReplyCode: "",
 			SendType: "AUTO_RESP", UserID: req.UserID, Cost: data.TotalCost,
@@ -286,7 +293,9 @@ func sendAutoResponse(req *AutoRespData) error {
 
 func getUserBalance(userID string) (int, error) {
 	var userBal int
-	err = utils.DBCon.QueryRow("select sum(trans_amount) from billing_cashtransaction where user_id=?", userID).Scan(&userBal)
+	err := utils.DBCon.QueryRow(
+		"select sum(trans_amount) from billing_cashtransaction "+
+			"where user_id=?", userID).Scan(&userBal)
 
 	if err != nil {
 		log.Println("error query messageid using batch")
@@ -340,11 +349,13 @@ func getMessageCost(
 
 func getUserCost(userID string) (string, error) {
 	var userPrice float64
-	err = utils.DBCon.QueryRow("select user_price from accounts_userprofile where user_id=?", userID).Scan(&userPrice)
+	err := utils.DBCon.QueryRow(
+		"select user_price from accounts_userprofile "+
+			"where user_id=?", userID).Scan(&userPrice)
 
 	if err != nil {
 		log.Println("error query user price")
-		return 0.0, err
+		return "1.00", err
 	}
 
 	return fmt.Sprintf("%.2f", userPrice), nil
@@ -358,7 +369,7 @@ func getNet(number string) string {
 		"9": "safaricom", "0": "safaricom",
 	}
 	if number[0:3] == "254" {
-		net = kenNet[number[4]]
+		net = kenNet[string(number[4])]
 	} else if number[0:3] == "256" {
 		net = "ug"
 	} else if number[0:3] == "255" {
@@ -372,7 +383,7 @@ func getNet(number string) string {
 func saveSentSMS(req *SMSData) (string, error) {
 	tx, err := utils.DBCon.Begin()
 	if err != nil {
-		return err
+		return "", err
 	}
 	stmt, err := utils.DBCon.Prepare(
 		"insert into bsms_smsoutbox (is_done, is_busy, senderid, content, " +
@@ -380,7 +391,7 @@ func saveSentSMS(req *SMSData) (string, error) {
 			"sender_id, deleted) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 	)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer stmt.Close()
 
@@ -389,12 +400,12 @@ func saveSentSMS(req *SMSData) (string, error) {
 		req.SendTime, 0, req.ProcessTime, req.SendType, req.UserID, 0,
 	)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	outboxID, err := res.LastInsertId()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if req.Cost > 0 {
@@ -404,7 +415,7 @@ func saveSentSMS(req *SMSData) (string, error) {
 				"values(?, ?, ?, ?, ?, ?)",
 		)
 		if err != nil {
-			return err
+			return "", err
 		}
 		defer stmt.Close()
 		_, err = stmt.Exec(
@@ -412,7 +423,7 @@ func saveSentSMS(req *SMSData) (string, error) {
 			req.ProcessTime, req.UserID,
 		)
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
 
@@ -424,21 +435,21 @@ func saveSentSMS(req *SMSData) (string, error) {
 	)
 
 	if err != nil {
-		return err
+		return "", err
 	}
 	res, err = stmt.Exec(
-		"", 1, req.CostData.Number, rec.CostData.Status,
-		rec.CostData.Reason, rec.CostData.APIID, rec.CostData.Cost,
+		"", 1, req.CostData.Number, req.CostData.Status,
+		req.CostData.Reason, req.CostData.APIID, req.CostData.Cost,
 		req.Currency, req.SendTime, outboxID, req.UserID, req.ProcessTime,
 	)
 
 	if err != nil {
-		return err
+		return "", err
 	}
 	recID, err := res.LastInsertId()
 	if err != nil {
 		return "", err
 	}
 	tx.Commit()
-	return recID, nil
+	return strconv.FormatInt(recID, 10), nil
 }
