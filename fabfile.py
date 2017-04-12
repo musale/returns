@@ -1,37 +1,41 @@
 
-import os
-
-from fabric.api import env, cd, run, sudo, local, lcd, put
+from fabric.api import env, cd, run, sudo, local
 from fabric.contrib.files import exists
-from fabric.colors import green
+from fabric.colors import green, red
 
 env.use_ssh_config = True
-env.hosts = ["sms"]
-
-local_dir = "/home/ekt/go/src/github.com/etowett/"
-live_dir = "/home/focus/go/src/github.com/etowett/"
-install_dir = "/apps/returns/"
-tmp = "/tmp/returns"
-tmp_f = "%s/returns.tar.gz" % tmp
+env.hosts = ["web"]
+install_dir = "/apps/returns"
+home_dir = "/home/focus"
+local_dir = "/home/ekt/go/src/bitbucket.org/teamictlife/"
+live_dir = "%s/go/src/bitbucket.org/teamictlife/" % home_dir
 user = "focus"
 
 
-print(green("Deploying to stage"))
+def stage():
+    env.hosts = ["sms"]
+    return
 
 
 def deploy():
-    print(green("pulling changes"))
-    with cd("%sreturns" % (live_dir,)):
+    with cd("%returns" % live_dir):
+        print(green("Pull changes from bitbucket"))
         run("git pull origin master")
+        print(green("get dependencies if any"))
         run("go get")
+        print(green("build"))
         run("go build")
+        print(green("install new"))
         run("go install")
-    print(green("stop service"))
+    print(red("stop returns application"))
     stop_returns()
     with cd(install_dir):
-        run("rm returns")
-        run("cp /home/ekt/go/bin/returns .")
-    print(green("start service"))
+        if exists("returns"):
+            print(red("remove old returns"))
+            run("rm returns")
+        print(green("copy new returns"))
+        run("cp %s/go/bin/returns ." % home_dir)
+    print(green("start returns application"))
     restart_returns()
     return
 
