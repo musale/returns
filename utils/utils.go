@@ -151,13 +151,15 @@ func RedisPool() *redis.Pool {
 }
 
 // ScheduleTask creates a schedule for future
-func ScheduleTask(queue string, data string, delay int64) {
+func ScheduleTask(queue string, data string, delay int64) error {
 	redisCon := RedisPool().Get()
 	defer redisCon.Close()
 
 	runAt := time.Now().Unix() + delay
 
-	redisCon.Do("ZADD", queue, runAt, data)
+	if _, err := redisCon.Do("ZADD", queue, runAt, data); err != nil {
+		return err
+	}
 
-	return
+	return nil
 }

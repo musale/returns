@@ -1,7 +1,8 @@
 
-from fabric.api import env, cd, run, sudo, local
-from fabric.contrib.files import exists
 from fabric.colors import green, red
+from fabric.contrib.files import exists
+from fabric.api import env, cd, run, sudo
+from fabric.contrib.project import rsync_project
 
 env.use_ssh_config = True
 env.hosts = ["web"]
@@ -43,9 +44,9 @@ def deploy():
 
 
 def xdeploy():
-    local(
-        "rsync -avh --exclude='.git*' --exclude='*.pyc' %sreturns sms:%s"
-        % (local_dir, live_dir,)
+    rsync_project(
+        live_dir, local_dir='%sreturns' % local_dir,
+        exclude=['*.pyc', '.git*'], delete=True
     )
     with cd('%sreturns' % live_dir):
         print(green("get dependencies if any"))
@@ -73,9 +74,9 @@ def setup():
         run("mkdir /home/focus/go")
         run("echo \"export GOPATH=$HOME/go\" >> /home/focus/.bashrc")
     if not exists('%smoniyee' % live_dir):
-        local(
-            "rsync -avh --exclude='.git*' --exclude='*.pyc' %sreturns sms:%s"
-            % (local_dir, live_dir,)
+        rsync_project(
+            live_dir, local_dir='%sreturns' % local_dir,
+            exclude=['*.pyc', '.git*'], delete=True
         )
     with cd('%sreturns' % live_dir):
         run('go get')

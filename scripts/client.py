@@ -9,7 +9,7 @@ from hashlib import md5
 from faker import Faker
 
 # url = "http://callbacks.smsleopard.com/"
-url = "http://127.0.0.1:8017/"
+url = "http://callhttp://callbacks.local/inbox/"
 fake = Faker()
 
 
