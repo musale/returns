@@ -169,7 +169,7 @@ func saveDlr(req *DlrRequest) error {
 
 	if err != nil {
 		if err == redis.ErrNil {
-			if req.Retries > 7 {
+			if req.Retries > 8 {
 				log.Println("Save Hanging DLR:", req)
 				err = saveHangingDlr(req)
 				if err != nil {
@@ -219,8 +219,8 @@ func saveDlr(req *DlrRequest) error {
 
 func saveHangingDlr(req *DlrRequest) error {
 	stmt, err := utils.DBCon.Prepare(
-		"insert into bsms_hangingdlrs (api_id, status, reason, api_time) " +
-			"values (?, ?, ?, ?)",
+		"insert into bsms_hangingdlrs (api_id, status, reason, " +
+			"api_time, insert_time) values (?, ?, ?, ?, ?)",
 	)
 	if err != nil {
 		log.Println("Prepare hanging dlr Insert")
@@ -231,6 +231,7 @@ func saveHangingDlr(req *DlrRequest) error {
 
 	_, err = stmt.Exec(
 		req.APIID, strings.ToUpper(req.Status), req.Reason, req.TimeReceived,
+		time.Now(),
 	)
 
 	if err != nil {
