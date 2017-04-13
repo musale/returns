@@ -11,6 +11,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Code short code struct
 type Code struct {
 	CodeID   int64
 	CodeType string
@@ -18,11 +19,13 @@ type Code struct {
 	Code     string
 }
 
+// SharedCode dat
 type SharedCode struct {
 	UserID  int64
 	Keyword string
 }
 
+// AutoResponse data
 type AutoResponse struct {
 	SenderID string
 	Keyword  string
@@ -31,7 +34,7 @@ type AutoResponse struct {
 }
 
 func main() {
-	err := godotenv.Load("../.env")
+	err := godotenv.Load("/apps/returns/.env")
 	if err != nil {
 		log.Fatal("Error loading .env file ", err)
 	}

@@ -7,8 +7,8 @@ env.use_ssh_config = True
 env.hosts = ["web"]
 install_dir = "/apps/returns"
 home_dir = "/home/focus"
-local_dir = "/home/ekt/go/src/bitbucket.org/teamictlife/"
-live_dir = "%s/go/src/bitbucket.org/teamictlife/" % home_dir
+local_dir = "/home/ekt/go/src/github.com/etowett/"
+live_dir = "%s/go/src/github.com/etowett/" % home_dir
 user = "focus"
 
 
@@ -27,6 +27,8 @@ def deploy():
         run("go build")
         print(green("install new"))
         run("go install")
+    print(green("populating redis"))
+    run("go run %sreturns/scripts/cache-codes.go")
     print(red("stop returns application"))
     stop_returns()
     with cd(install_dir):
@@ -41,35 +43,41 @@ def deploy():
 
 
 def xdeploy():
-    if os.path.exists(tmp):
-        local('rm -rf %s' % tmp)
-    local('mkdir %s' % tmp)
-    with lcd(local_dir):
-        local('tar -czhf %s returns --exclude=".git*"' % (tmp_f))
-    if exists(tmp):
-        run('rm -rf %s' % tmp)
-    run('mkdir %s' % tmp)
-    put(tmp_f, tmp_f)
-    with cd(live_dir):
-        if exists('returns'):
-            run('rm -rf returns')
-        run('tar -xzf %s' % tmp_f)
+    local(
+        "rsync -avh --exclude='.git*' --exclude='*.pyc' %sreturns sms:%s"
+        % (local_dir, live_dir,)
+    )
     with cd('%sreturns' % live_dir):
+        print(green("get dependencies if any"))
         run('go get')
+        print(green("build"))
         run('go build')
+        print(green("install new"))
         run('go install')
+    print(green("populating redis"))
+    run("go run %sreturns/scripts/cache-codes.go" % live_dir)
+    with cd(install_dir):
+        if exists("returns"):
+            print(red("remove old returns"))
+            run("rm returns")
+        print(green("copy new returns"))
+        run("cp /home/focus/go/bin/returns .")
+    print(green("start service"))
     restart_returns()
     return
 
 
 def setup():
-    sudo("yum -y install go git")
+    sudo("yum -y install go git nginx")
     if not exists("/home/focus/go"):
         run("mkdir /home/focus/go")
         run("echo \"export GOPATH=$HOME/go\" >> /home/focus/.bashrc")
-    run("go get github.com/etowett/returns")
+    if not exists('%smoniyee' % live_dir):
+        local(
+            "rsync -avh --exclude='.git*' --exclude='*.pyc' %sreturns sms:%s"
+            % (local_dir, live_dir,)
+        )
     with cd('%sreturns' % live_dir):
-        run('git pull origin master')
         run('go get')
         run('go build')
         run('go install')
@@ -85,6 +93,10 @@ def setup():
     sudo(
         "cp %sreturns/config/callbacks.service "
         "/etc/systemd/system/callbacks.service" % (live_dir,)
+    )
+    sudo(
+        "cp %sreturns/config/callbacks.conf "
+        "/etc/nginx/conf.d/" % (live_dir,)
     )
     with cd("/var/log/"):
         if not exists("returns"):

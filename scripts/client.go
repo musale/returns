@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -15,20 +17,25 @@ func main() {
 	if err != nil {
 		log.Println("inbox error: ", err)
 	}
-	log.Println("Inbox: ", resps)
+	log.Println("Inbox: ", resp)
 	return
 }
 
 func sendInbox() (string, error) {
-	url := "http://127.0.0.1/inbox"
+	inboxURL := "http://callbacks.local/inbox"
+	inID := getMD5Hash(time.Now().String())
 	form := url.Values{}
 	form.Add("from", getPhone())
 	form.Add("to", getShortCode())
 	form.Add("text", getMessage())
-	form.Add("date", time.Now())
-	form.Add("id", time.Now().Unix())
+	form.Add("date", time.Now().String())
+	form.Add("id", inID)
 
-	return makeRequest(url, form), nil
+	response, err := makeRequest(inboxURL, form)
+	if err != nil {
+		return "", err
+	}
+	return response, nil
 }
 
 func getPhone() string {
@@ -36,11 +43,11 @@ func getPhone() string {
 }
 
 func getShortCode() string {
-	return "31390"
+	return "31391"
 }
 
 func getMessage() string {
-	return "Hello world!"
+	return "This should go express!"
 }
 
 func makeRequest(
@@ -72,4 +79,10 @@ func makeRequest(
 		return "", err
 	}
 	return string(body), nil
+}
+
+func getMD5Hash(text string) string {
+	hasher := md5.New()
+	hasher.Write([]byte(text))
+	return hex.EncodeToString(hasher.Sum(nil))
 }

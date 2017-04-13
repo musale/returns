@@ -2,9 +2,9 @@
 Description=Callbacks Application
 
 [Service]
-ExecStart=/apps/gocode/bin/returns
+ExecStart=/apps/returns/returns
 
-WorkingDirectory=/apps/gocode/bin
+WorkingDirectory=/apps/returns
 
 User=focus
 Group=focus

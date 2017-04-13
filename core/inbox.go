@@ -119,9 +119,9 @@ func ListenForInbox() {
 			}
 		}
 
-		for _, values := range request {
-			if values != "inbox" {
-				err := json.Unmarshal([]byte(values), &inboxObj)
+		for _, inData := range request {
+			if inData != "inbox" {
+				err := json.Unmarshal([]byte(inData), &inboxObj)
 				if err != nil {
 					log.Println("req Unmarshal", err)
 				}
@@ -194,6 +194,11 @@ func saveInbox(req *InboxRequest) error {
 }
 
 func saveMessage(req *InboxData) error {
+
+	// if code == 31390
+	// check for balance
+	// if not enough balance mark as disable
+	// else create cash transaction to deduct baance
 
 	stmt, err := utils.DBCon.Prepare("insert into bsms_smsinbox(is_read, sender, short_code, api_id, message, user_id, deleted, api_date, insert_date) values (?, ?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
