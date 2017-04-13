@@ -11,24 +11,30 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
+// OptOutRequest payload for opt out
 type OptOutRequest struct {
 	SenderID string    `json:"sender_id"`
 	Phone    string    `json:"phone_number"`
 	Time     time.Time `json:"time"`
 }
 
+// OptoutPage callback for opted out messages
 func OptoutPage(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		w.Header().Set("Allow", "POST")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
+
+	err := r.ParseForm()
+	if err != nil {
+		log.Println("err: OptoutPage: ", err)
 	}
+	log.Println("OptoutPage: ", r.Form)
 
 	senderID := r.FormValue("senderId")
 	phoneNumber := r.FormValue("phoneNumber")
 
 	if len(senderID) == 0 || len(phoneNumber) == 0 {
-		fmt.Fprintf(w, "Required Params not found")
+		_, err = fmt.Fprintf(w, "Required Params not found")
+		if err != nil {
+			log.Println("err: optout Write back resp: ", err)
+		}
 		return
 	}
 
@@ -36,13 +42,10 @@ func OptoutPage(w http.ResponseWriter, r *http.Request) {
 		SenderID: senderID, Phone: phoneNumber, Time: time.Now(),
 	}
 
-	log.Println("Optout request: ", request)
-
 	redisCon := utils.RedisPool().Get()
 	defer redisCon.Close()
 
 	jsonReq, err := json.Marshal(request)
-
 	if err != nil {
 		log.Println("Optout request: ", err)
 	}
@@ -52,8 +55,10 @@ func OptoutPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(200)
-	w.Header().Set("Server", "Returns")
-	fmt.Fprintf(w, "Optout Received")
+	_, err = fmt.Fprintf(w, "Optout Received")
+	if err != nil {
+		log.Println("err: optout Write back resp: ", err)
+	}
 	return
 }
 
@@ -67,8 +72,12 @@ func ListenForOptOut() {
 	for {
 		request, err := redis.Strings(redisCon.Do("BLPOP", "inbox", 1))
 
-		if err != nil && err == redis.ErrNil {
-			time.Sleep(time.Second * 2)
+		if err != nil {
+			if err == redis.ErrNil {
+				time.Sleep(time.Second * 10)
+			} else {
+				log.Println("redis error: ", err)
+			}
 		}
 
 		for _, values := range request {
@@ -84,7 +93,6 @@ func ListenForOptOut() {
 			}
 		}
 	}
-	return
 }
 
 func saveOptout(req *OptOutRequest) error {
