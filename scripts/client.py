@@ -8,8 +8,7 @@ from hashlib import md5
 
 from faker import Faker
 
-# url = "http://callbacks.smsleopard.com/"
-url = "http://callhttp://callbacks.local/inbox/"
+url = "http://callbacks.local/"
 fake = Faker()
 
 
