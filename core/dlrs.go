@@ -169,26 +169,21 @@ func saveDlr(req *DlrRequest) error {
 
 	if err != nil {
 		if err == redis.ErrNil {
-			log.Println("Save Hanging DLR:", req)
-			err = saveHangingDlr(req)
-			if err != nil {
-				return err
+			if req.Retries > 7 {
+				log.Println("Save Hanging DLR:", req)
+				err = saveHangingDlr(req)
+				if err != nil {
+					return err
+				}
+			} else {
+				log.Println("Sched DLR for retry:", req)
+				req.Retries++
+				err = utils.ScheduleTask(
+					"dlr_sched", req.parseRequestString(), 5*60)
+				if err != nil {
+					return err
+				}
 			}
-			// if req.Retries > 7 {
-			// 	log.Println("Save Hanging DLR:", req)
-			// 	err = saveHangingDlr(req)
-			// 	if err != nil {
-			// 		return err
-			// 	}
-			// } else {
-			// 	log.Println("Sched DLR for retry:", req)
-			// 	req.Retries++
-			// 	err = utils.ScheduleTask(
-			// 		"dlr_sched", req.parseRequestString(), 5*60)
-			// 	if err != nil {
-			// 		return err
-			// 	}
-			// }
 		} else {
 			return err
 		}
