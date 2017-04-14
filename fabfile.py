@@ -19,7 +19,7 @@ def stage():
 
 
 def deploy():
-    with cd("%returns" % live_dir):
+    with cd("%sreturns" % live_dir):
         print(green("Pull changes from bitbucket"))
         run("git pull origin master")
         print(green("get dependencies if any"))
@@ -28,8 +28,8 @@ def deploy():
         run("go build")
         print(green("install new"))
         run("go install")
-    print(green("populating redis"))
-    run("go run %sreturns/scripts/cache-codes.go")
+    # print(green("populating redis"))
+    # run("go run %sreturns/scripts/cache-codes.go")
     print(red("stop returns application"))
     stop_returns()
     with cd(install_dir):

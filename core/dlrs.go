@@ -108,7 +108,6 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(200)
-	w.Header().Set("Server", "Returns")
 	_, err = fmt.Fprintf(w, "RMDlr Received")
 	if err != nil {
 		log.Println("err: RMWrite back resp: ", err)
