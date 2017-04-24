@@ -31,6 +31,20 @@ type InboxRequest struct {
 	MessageID string
 }
 
+// InboxRequestInterface definition
+type InboxRequestInterface interface {
+	parseRequestString() string
+}
+
+// Function to parse a InboxRequest item to string
+func (request *InboxRequest) parseRequestString() string {
+	requestJSON, err := json.Marshal(request)
+	if err != nil {
+		log.Println("Inbox request to json string error", err)
+	}
+	return string(requestJSON)
+}
+
 // InboxData payload of inbox paras
 type InboxData struct {
 	From    string
@@ -63,6 +77,8 @@ type SMSData struct {
 	CostData    utils.CostData
 }
 
+var InboxReqChan = make(chan InboxRequest, 100)
+
 // InboxPage callback for incoming messages
 func InboxPage(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
@@ -81,23 +97,25 @@ func InboxPage(w http.ResponseWriter, r *http.Request) {
 		From: from, To: to, Message: text, Date: date, MessageID: id,
 	}
 
-	redisCon := utils.RedisPool().Get()
-	defer redisCon.Close()
-
-	jsonReq, err := json.Marshal(request)
-
-	if err != nil {
-		log.Println("scheduled to json: ", err)
-	}
-
-	if _, err = redisCon.Do("RPUSH", "inbox", string(jsonReq)); err != nil {
-		log.Println("inbox queue error: ", err)
-	}
+	go func() {
+		InboxReqChan <- request
+	}()
 
 	w.WriteHeader(200)
 	_, err = fmt.Fprintf(w, "Inbox Received")
 	if err != nil {
 		log.Println("Response Error: ", err)
+	}
+	return
+}
+
+func QueueInbox(request ...InboxRequestInterface) {
+	redisCon := utils.RedisPool().Get()
+	defer redisCon.Close()
+	for _, req := range request {
+		if _, err := redisCon.Do("RPUSH", "inbox", req.parseRequestString()); err != nil {
+			log.Println("QueueInbox: ", err)
+		}
 	}
 	return
 }

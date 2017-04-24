@@ -49,6 +49,7 @@ func main() {
 	go core.PushToQueue()
 
 	startQueueDlrWorkers()
+	startQueueInboxWorkers()
 
 	// Route set up
 	http.HandleFunc("/at-dlrs", core.ATDlrPage)
@@ -61,6 +62,16 @@ func main() {
 }
 
 func startQueueDlrWorkers() {
+	for i := 1; i <= 10; i++ {
+		go func() {
+			for dlr := range core.DLRReqChan {
+				core.QueueDlr(&dlr)
+			}
+		}()
+	}
+}
+
+func startQueueInboxWorkers() {
 	for i := 1; i <= 10; i++ {
 		go func() {
 			for dlr := range core.DLRReqChan {

@@ -29,7 +29,7 @@ type DlrRequestInterface interface {
 func (request *DLRRequest) parseRequestString() string {
 	requestJSON, err := json.Marshal(request)
 	if err != nil {
-		log.Fatal("Dlr request to json string error", err)
+		log.Println("Dlr request to json string error", err)
 	}
 	return string(requestJSON)
 }
@@ -143,7 +143,6 @@ func ListenForDlrs() {
 				log.Println("redisError: ", err)
 			}
 		}
-
 		for _, dlrVal := range dlrReq {
 			if dlrVal != "dlrs" {
 				err := json.Unmarshal([]byte(dlrVal), &dlrItem)
