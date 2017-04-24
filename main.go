@@ -48,6 +48,8 @@ func main() {
 	// Push Scheduled Dlrs to reqdy queue
 	go core.PushToQueue()
 
+	startQueueDlrWorkers()
+
 	// Route set up
 	http.HandleFunc("/at-dlrs", core.ATDlrPage)
 	http.HandleFunc("/rm-dlrs", core.RMDlrPage)
@@ -56,4 +58,14 @@ func main() {
 	http.HandleFunc("/optout", core.OptoutPage)
 
 	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
+}
+
+func startQueueDlrWorkers() {
+	for i := 1; i <= 10; i++ {
+		go func() {
+			for dlr := range core.DLRReqChan {
+				core.QueueDlr(&dlr)
+			}
+		}()
+	}
 }

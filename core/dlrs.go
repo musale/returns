@@ -13,7 +13,7 @@ import (
 )
 
 // DlrRequest struct
-type DlrRequest struct {
+type DLRRequest struct {
 	APIID, Status, Reason string
 	TimeReceived          time.Time
 	Retries               int64
@@ -25,8 +25,8 @@ type DlrRequestInterface interface {
 	parseRequestMap() map[string]string
 }
 
-// Function to parse a DlrRequest item to string
-func (request *DlrRequest) parseRequestString() string {
+// Function to parse a DLRRequest item to string
+func (request *DLRRequest) parseRequestString() string {
 	requestJSON, err := json.Marshal(request)
 	if err != nil {
 		log.Fatal("Dlr request to json string error", err)
@@ -34,14 +34,16 @@ func (request *DlrRequest) parseRequestString() string {
 	return string(requestJSON)
 }
 
-// Function to parse a DlrRequest item to map[string]string
-func (request *DlrRequest) parseRequestMap() map[string]string {
+// Function to parse a DLRRequest item to map[string]string
+func (request *DLRRequest) parseRequestMap() map[string]string {
 	return map[string]string{
 		"api_id": request.APIID,
 		"status": request.Status,
 		"reason": request.Reason,
 	}
 }
+
+var DLRReqChan = make(chan DLRRequest, 100)
 
 // ATDlrPage rendering
 func ATDlrPage(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +60,7 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 		apiStatus = "DELIVRD"
 	}
 
-	request := DlrRequest{
+	request := DLRRequest{
 		APIID: apiID, Status: strings.ToUpper(apiStatus),
 		TimeReceived: time.Now(), Retries: 0,
 	}
@@ -67,10 +69,9 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 		request.Reason = r.FormValue("failureReason")
 	}
 
-	err = pushToQueue(&request)
-	if err != nil {
-		log.Println("ATpushToQueue err: ", err)
-	}
+	go func() {
+		DLRReqChan <- request
+	}()
 
 	w.WriteHeader(200)
 	_, err = fmt.Fprintf(w, "ATDlr Received")
@@ -102,10 +103,9 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 		request.Reason = "DeliveryFailure"
 	}
 
-	err = pushToQueue(&request)
-	if err != nil {
-		log.Println("RMpushToQueue err: ", err)
-	}
+	go func() {
+		DLRReqChan <- request
+	}()
 
 	w.WriteHeader(200)
 	w.Header().Set("Server", "Returns")
@@ -116,17 +116,15 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func pushToQueue(request ...DlrRequestInterface) error {
+func QueueDlr(request ...DlrRequestInterface) {
 	redisCon := utils.RedisPool().Get()
 	defer redisCon.Close()
-
 	for _, req := range request {
 		if _, err := redisCon.Do("RPUSH", "dlrs", req.parseRequestString()); err != nil {
-			return err
+			log.Println("QueueDlr: ", err)
 		}
 	}
-
-	return nil
+	return
 }
 
 // ListenForDlrs on redis
