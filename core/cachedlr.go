@@ -31,5 +31,5 @@ func CacheDlrPage(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(Response{
 		Status: "success", Message: "dlr received",
 	})
-
+	return
 }
