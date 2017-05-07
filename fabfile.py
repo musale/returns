@@ -28,8 +28,6 @@ def deploy():
         run("go build")
         print(green("install new"))
         run("go install")
-    # print(green("populating redis"))
-    # run("go run %sreturns/scripts/cache-codes.go")
     print(red("stop returns application"))
     stop_returns()
     with cd(install_dir):
@@ -55,8 +53,8 @@ def xdeploy():
         run('go build')
         print(green("install new"))
         run('go install')
-    print(green("populating redis"))
-    run("go run %sreturns/scripts/cache-codes.go" % live_dir)
+    # print(green("populating redis"))
+    # run("go run %sreturns/scripts/cache-codes.go" % live_dir)
     with cd(install_dir):
         if exists("returns"):
             print(red("remove old returns"))

@@ -93,7 +93,7 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 	apiID := r.FormValue("sMessageId")
 	apiStatus := r.FormValue("sStatus")
 
-	request := DlrRequest{
+	request := DLRRequest{
 		APIID: apiID, Status: strings.ToUpper(apiStatus),
 		TimeReceived: time.Now(), Retries: 0,
 	}
@@ -115,15 +115,16 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func QueueDlr(request ...DlrRequestInterface) {
+func QueueDlr(request ...DlrRequestInterface) error {
 	redisCon := utils.RedisPool().Get()
 	defer redisCon.Close()
 	for _, req := range request {
 		if _, err := redisCon.Do("RPUSH", "dlrs", req.parseRequestString()); err != nil {
 			log.Println("QueueDlr: ", err)
+			return err
 		}
 	}
-	return
+	return nil
 }
 
 // ListenForDlrs on redis
@@ -131,7 +132,7 @@ func ListenForDlrs() {
 	redisCon := utils.RedisPool().Get()
 	defer redisCon.Close()
 
-	var dlrItem DlrRequest
+	var dlrItem DLRRequest
 	for {
 		dlrReq, err := redis.Strings(redisCon.Do("BLPOP", "dlrs", 1))
 
@@ -157,7 +158,7 @@ func ListenForDlrs() {
 	}
 }
 
-func saveDlr(req *DlrRequest) error {
+func saveDlr(req *DLRRequest) error {
 	redisCon := utils.RedisPool().Get()
 	defer redisCon.Close()
 
@@ -213,7 +214,7 @@ func saveDlr(req *DlrRequest) error {
 	return nil
 }
 
-func saveHangingDlr(req *DlrRequest) error {
+func saveHangingDlr(req *DLRRequest) error {
 	stmt, err := utils.DBCon.Prepare(
 		"insert into bsms_hangingdlrs (api_id, status, reason, " +
 			"api_time, insert_time) values (?, ?, ?, ?, ?)",

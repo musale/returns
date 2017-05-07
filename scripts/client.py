@@ -174,8 +174,8 @@ if __name__ == '__main__':
 
     # print push_all_dlrs()
 
-    print send_rms_dlr('10f61d55-f863-45f6-8cfd-ea862abd102a')
-    print send_dlr('5a2637fc-4b0e-48c0-be2b-1dab0ddcd2dd')
+    print send_rms_dlr('8891d771-4e3a-4710-a21b-34ca9b3781f9')
+    print send_dlr('24ee1e9d-9a04-4f36-933d-d2a5fe3966b6')
 
     # for i in xrange(20):
     #     print send_optout()
