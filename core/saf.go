@@ -1,43 +1,38 @@
-package pkg
+package core
 
 import (
 	"encoding/xml"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
-	"os"
-	"strconv"
-	"strings"
+	"time"
 )
 
-// NotifySMSEnvelope is the structure of an SMS notification response
-type NotifySMSEnvelope struct {
+// NotifyEnvelope is the struct that creates the xml payload
+type NotifyEnvelope struct {
 	NotifyHeader struct {
 		SOAPHeader struct {
-			RevID       string `xml:"spRevId"`
-			RevPassword string `xml:"spRevpassword"`
-			SpID        string `xml:"spId"`
-			ServiceID   string `xml:"serviceId"`
-			LinkID      string `xml:"linkid"`
-			TransID     string `xml:"traceUniqueID"`
+			TimeStamp  string `xml:"timeStamp"`
+			SubReqID   string `xml:"subReqID"`
+			UniqueueID string `xml:"traceUniqueID"`
 		} `xml:"NotifySOAPHeader"`
 	} `xml:"Header"`
 	NotifyBody struct {
-		SMSReception struct {
+		DLRReceipt struct {
 			Correlator string `xml:"correlator"`
-			Message    struct {
-				Message          string `xml:"message"`
-				Number           string `xml:"senderAddress"`
-				ActivationNumber string `xml:"smsServiceActivationNumber"`
-				Date             string `xml:"dateTime"`
-			} `xml:"message"`
-		} `xml:"notifySmsReception"`
+			DLRStatus  struct {
+				Number string `xml:"address"`
+				Status string `xml:"deliveryStatus"`
+			} `xml:"deliveryStatus"`
+		} `xml:"notifySmsDeliveryReceipt"`
 	} `xml:"Body"`
 }
 
-// SMSNotifs is the channel handling at most 100 sms notifications
-var SMSNotifs = make(chan NotifySMSEnvelope, 100)
+// Tel is the first 4 characters before a telephone number
+var Tel = "tel:"
+
+// NotifyResp is the xml payload for notifySmsDeliveryReceiptResponse
+var NotifyResp = `<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:loc="http://www.csapi.org/schema/parlayx/sms/notification/v2_2/local"><soapenv:Header /><soapenv:Body><loc:notifySmsDeliveryReceiptResponse /></soapenv:Body></soapenv:Envelope>`
 
 // NotifySMS handles sms notifications
 func SafNotifyPage(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +44,7 @@ func SafNotifyPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req NotifySMSEnvelope
+	var req NotifyEnvelope
 	if err := xml.Unmarshal(body, &req); err != nil {
 		log.Println("Xml unmarshal: ", err)
 		w.Header().Set("Content-Type", "text/xml; charset=UTF-8")
@@ -57,13 +52,24 @@ func SafNotifyPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("NotifySMS::req ", req)
-	go func() {
-		SMSNotifs <- req
-	}()
+	apiID := req.NotifyBody.DLRReceipt.Correlator
+	phoneNumber := req.NotifyBody.DLRReceipt.DLRStatus.Number
+	apiStatus := req.NotifyBody.DLRReceipt.DLRStatus.Status
+	if phoneNumber[0:4] == Tel {
+		phoneNumber = phoneNumber[4:]
+	}
+
+	request := DLRRequest{
+		APIID: phoneNumber + ":" + apiID, Status: apiStatus,
+		TimeReceived: time.Now(), Retries: 0,
+	}
+
+	go func(request *DLRRequest) {
+		DLRReqChan <- request
+	}(&request)
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "text/xml; charset=UTF-8")
-	w.Write([]byte(NotifySMSResp))
+	w.Write([]byte(NotifyResp))
 	return
 }

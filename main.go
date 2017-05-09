@@ -67,7 +67,7 @@ func startQueueDlrWorkers() {
 	for i := 1; i <= 9; i++ {
 		go func() {
 			for dlr := range core.DLRReqChan {
-				err := core.QueueDlr(&dlr)
+				err := core.QueueDlr(dlr)
 				if err != nil {
 					log.Println("QueueDlr: ", err)
 				}
