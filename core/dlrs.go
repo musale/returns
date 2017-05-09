@@ -43,7 +43,7 @@ func (request *DLRRequest) parseRequestMap() map[string]string {
 	}
 }
 
-var DLRReqChan = make(chan DLRRequest, 100)
+var DLRReqChan = make(chan DLRRequest, 250)
 
 // ATDlrPage rendering
 func ATDlrPage(w http.ResponseWriter, r *http.Request) {
@@ -69,9 +69,9 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 		request.Reason = r.FormValue("failureReason")
 	}
 
-	go func() {
+	go func(request *DlrRequest) {
 		DLRReqChan <- request
-	}()
+	}(&request)
 
 	w.WriteHeader(200)
 	_, err = fmt.Fprintf(w, "ATDlr Received")
@@ -103,9 +103,9 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 		request.Reason = "DeliveryFailure"
 	}
 
-	go func() {
+	go func(request *DlrRequest) {
 		DLRReqChan <- request
-	}()
+	}(&request)
 
 	w.WriteHeader(200)
 	_, err = fmt.Fprintf(w, "RMDlr Received")
@@ -148,9 +148,9 @@ func SafDlrPage(w http.ResponseWriter, r *http.Request) {
 		TimeReceived: time.Now(), Retries: 0,
 	}
 
-	go func() {
+	go func(request *DlrRequest) {
 		DLRReqChan <- request
-	}()
+	}(&request)
 
 	_, err = fmt.Fprintf(w, "SafDlr Received")
 	if err != nil {

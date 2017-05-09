@@ -54,6 +54,7 @@ func main() {
 	http.HandleFunc("/at-dlrs", core.ATDlrPage)
 	http.HandleFunc("/rm-dlrs", core.RMDlrPage)
 	http.HandleFunc("/saf-dlrs", core.SafDlrPage)
+	http.HandleFunc("/saf-notify", core.SafNotifyPage)
 	http.HandleFunc("/cache-dlr", core.CacheDlrPage)
 	http.HandleFunc("/cache-bulk-dlr", core.CacheBulkDlrPage)
 	http.HandleFunc("/inbox", core.InboxPage)
