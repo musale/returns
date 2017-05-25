@@ -119,9 +119,9 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 func SafDlrPage(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
-		log.Println("err: ATParseForm: ", err)
+		log.Println("err: SafParseForm: ", err)
 	}
-	log.Println("ATDlrPage: ", r.Form)
+	log.Println("SafDlrPage: ", r.Form)
 
 	apiID := r.FormValue("message_id")
 	phoneNumber := r.FormValue("number")
