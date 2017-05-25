@@ -127,16 +127,16 @@ func SafDlrPage(w http.ResponseWriter, r *http.Request) {
 	phoneNumber := r.FormValue("number")
 	apiStatus := r.FormValue("status")
 
-	if string(phoneNumber[0]) == "+" {
-		phoneNumber = phoneNumber[1:]
-	}
-
 	if len(apiID) < 1 || len(phoneNumber) < 1 || len(apiStatus) < 1 {
 		_, err = fmt.Fprintf(w, "Params Not Found")
 		if err != nil {
 			log.Println("err: SafWrite back resp: ", err)
 		}
 		return
+	}
+
+	if string(phoneNumber[0]) == "+" {
+		phoneNumber = phoneNumber[1:]
 	}
 
 	if strings.ToLower(apiStatus) == "deliveredtoterminal" {
