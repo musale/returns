@@ -115,6 +115,39 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+// SafDlrPage rendering
+func SafDlrPage(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		log.Println("err: ATParseForm: ", err)
+	}
+	log.Println("ATDlrPage: ", r.Form)
+
+	apiID := r.FormValue("message_id")
+	phoneNumber := r.FormValue("number")
+	apiStatus := r.FormValue("status")
+
+	if strings.ToUpper(apiStatus) == "DeliveredToTerminal" {
+		apiStatus = "DELIVRD"
+	}
+
+	request := DLRRequest{
+		APIID: apiID, Status: phoneNumber + ":" + apiStatus,
+		TimeReceived: time.Now(), Retries: 0,
+	}
+
+	go func() {
+		DLRReqChan <- request
+	}()
+
+	w.WriteHeader(200)
+	_, err = fmt.Fprintf(w, "ATDlr Received")
+	if err != nil {
+		log.Println("err: ATWrite back resp: ", err)
+	}
+	return
+}
+
 func QueueDlr(request ...DlrRequestInterface) error {
 	redisCon := utils.RedisPool().Get()
 	defer redisCon.Close()

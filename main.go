@@ -53,8 +53,9 @@ func main() {
 	// Route set up
 	http.HandleFunc("/at-dlrs", core.ATDlrPage)
 	http.HandleFunc("/rm-dlrs", core.RMDlrPage)
+	http.HandleFunc("/saf-dlrs", core.SafDlrPage)
 	http.HandleFunc("/cache-dlr", core.CacheDlrPage)
-	http.HandleFunc("/cache-bulk-dlr", core.CacheBulkDlrPage)
+	http.HandleFunc("/cache-bulk-dlr", core.CacheBulQkDlrPage)
 	http.HandleFunc("/inbox", core.InboxPage)
 	http.HandleFunc("/optout", core.OptoutPage)
 
