@@ -5,7 +5,6 @@ from fabric.api import env, cd, run, sudo
 from fabric.contrib.project import rsync_project
 
 env.use_ssh_config = True
-env.hosts = ["web"]
 install_dir = "/apps/returns"
 home_dir = "/home/focus"
 local_dir = "/home/ekt/go/src/github.com/etowett/"
@@ -13,7 +12,12 @@ live_dir = "%s/go/src/github.com/etowett/" % home_dir
 user = "focus"
 
 
-def stage():
+def live():
+    env.hosts = ["web"]
+    return
+
+
+def dev():
     env.hosts = ["sms"]
     return
 

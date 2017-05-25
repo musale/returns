@@ -127,12 +127,24 @@ func SafDlrPage(w http.ResponseWriter, r *http.Request) {
 	phoneNumber := r.FormValue("number")
 	apiStatus := r.FormValue("status")
 
-	if strings.ToUpper(apiStatus) == "DeliveredToTerminal" {
+	if string(phoneNumber[0]) == "+" {
+		phoneNumber = phoneNumber[1:]
+	}
+
+	if len(apiID) < 1 || len(phoneNumber) < 1 || len(apiStatus) < 1 {
+		_, err = fmt.Fprintf(w, "Params Not Found")
+		if err != nil {
+			log.Println("err: SafWrite back resp: ", err)
+		}
+		return
+	}
+
+	if strings.ToLower(apiStatus) == "deliveredtoterminal" {
 		apiStatus = "DELIVRD"
 	}
 
 	request := DLRRequest{
-		APIID: apiID, Status: phoneNumber + ":" + apiStatus,
+		APIID: phoneNumber + ":" + apiID, Status: apiStatus,
 		TimeReceived: time.Now(), Retries: 0,
 	}
 
@@ -140,10 +152,9 @@ func SafDlrPage(w http.ResponseWriter, r *http.Request) {
 		DLRReqChan <- request
 	}()
 
-	w.WriteHeader(200)
-	_, err = fmt.Fprintf(w, "ATDlr Received")
+	_, err = fmt.Fprintf(w, "SafDlr Received")
 	if err != nil {
-		log.Println("err: ATWrite back resp: ", err)
+		log.Println("err: SafWrite back resp: ", err)
 	}
 	return
 }

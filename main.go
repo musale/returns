@@ -55,7 +55,7 @@ func main() {
 	http.HandleFunc("/rm-dlrs", core.RMDlrPage)
 	http.HandleFunc("/saf-dlrs", core.SafDlrPage)
 	http.HandleFunc("/cache-dlr", core.CacheDlrPage)
-	http.HandleFunc("/cache-bulk-dlr", core.CacheBulQkDlrPage)
+	http.HandleFunc("/cache-bulk-dlr", core.CacheBulkDlrPage)
 	http.HandleFunc("/inbox", core.InboxPage)
 	http.HandleFunc("/optout", core.OptoutPage)
 
@@ -63,7 +63,7 @@ func main() {
 }
 
 func startQueueDlrWorkers() {
-	for i := 1; i <= 10; i++ {
+	for i := 1; i <= 9; i++ {
 		go func() {
 			for dlr := range core.DLRReqChan {
 				err := core.QueueDlr(&dlr)
