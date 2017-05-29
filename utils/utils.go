@@ -43,6 +43,16 @@ type Costs struct {
 	CostData  []CostData `json:"cost_data"`
 }
 
+// InArray checks if an item is in the array
+func InArray(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
 // PushToAt common function to interface with API
 func PushToAt(to string, msg string, sid string) MessageData {
 	client := http.Client{}

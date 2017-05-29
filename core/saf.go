@@ -5,7 +5,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/etowett/returns/utils"
 )
 
 // NotifyEnvelope is the struct that creates the xml payload
@@ -44,6 +47,8 @@ func SafNotifyPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("SafNotifyPage: ", string(body))
+
 	var req NotifyEnvelope
 	if err := xml.Unmarshal(body, &req); err != nil {
 		log.Println("Xml unmarshal: ", err)
@@ -59,9 +64,23 @@ func SafNotifyPage(w http.ResponseWriter, r *http.Request) {
 		phoneNumber = phoneNumber[4:]
 	}
 
+	apiReason := ""
+	xStatus := []string{"deliveredtoterminal", "deliveredtonetwork"}
+
+	if utils.InArray(strings.ToLower(apiStatus), xStatus) {
+		apiStatus = "DELIVRD"
+	} else {
+		apiReason = apiStatus
+		apiStatus = "FAILED"
+	}
+
 	request := DLRRequest{
 		APIID: phoneNumber + ":" + apiID, Status: apiStatus,
 		TimeReceived: time.Now(), Retries: 0,
+	}
+
+	if len(apiReason) > 1 {
+		request.Reason = apiReason
 	}
 
 	go func(request *DLRRequest) {

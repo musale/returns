@@ -126,6 +126,7 @@ func SafDlrPage(w http.ResponseWriter, r *http.Request) {
 	apiID := r.FormValue("message_id")
 	phoneNumber := r.FormValue("number")
 	apiStatus := r.FormValue("status")
+	apiReason := ""
 
 	if len(apiID) < 1 || len(phoneNumber) < 1 || len(apiStatus) < 1 {
 		_, err = fmt.Fprintf(w, "Params Not Found")
@@ -139,13 +140,22 @@ func SafDlrPage(w http.ResponseWriter, r *http.Request) {
 		phoneNumber = phoneNumber[1:]
 	}
 
-	if strings.ToLower(apiStatus) == "deliveredtoterminal" {
+	xStatus := []string{"deliveredtoterminal", "deliveredtonetwork"}
+
+	if utils.InArray(strings.ToLower(apiStatus), xStatus) {
 		apiStatus = "DELIVRD"
+	} else {
+		apiReason = apiStatus
+		apiStatus = "FAILED"
 	}
 
 	request := DLRRequest{
 		APIID: phoneNumber + ":" + apiID, Status: apiStatus,
 		TimeReceived: time.Now(), Retries: 0,
+	}
+
+	if len(apiReason) > 1 {
+		request.Reason = apiReason
 	}
 
 	go func(request *DLRRequest) {
