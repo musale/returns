@@ -43,7 +43,7 @@ func (request *DLRRequest) parseRequestMap() map[string]string {
 	}
 }
 
-var DLRReqChan = make(chan *DLRRequest, 250)
+var DLRReqChan = make(chan *DLRRequest, 500)
 
 // ATDlrPage rendering
 func ATDlrPage(w http.ResponseWriter, r *http.Request) {
@@ -69,8 +69,8 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 		request.Reason = r.FormValue("failureReason")
 	}
 
-	go func(request *DLRRequest) {
-		DLRReqChan <- request
+	go func(req *DLRRequest) {
+		DLRReqChan <- req
 	}(&request)
 
 	w.WriteHeader(200)
@@ -103,8 +103,8 @@ func RMDlrPage(w http.ResponseWriter, r *http.Request) {
 		request.Reason = "DeliveryFailure"
 	}
 
-	go func(request *DLRRequest) {
-		DLRReqChan <- request
+	go func(req *DLRRequest) {
+		DLRReqChan <- req
 	}(&request)
 
 	w.WriteHeader(200)
@@ -158,8 +158,8 @@ func SafDlrPage(w http.ResponseWriter, r *http.Request) {
 		request.Reason = apiReason
 	}
 
-	go func(request *DLRRequest) {
-		DLRReqChan <- request
+	go func(req *DLRRequest) {
+		DLRReqChan <- req
 	}(&request)
 
 	_, err = fmt.Fprintf(w, "SafDlr Received")
@@ -303,9 +303,7 @@ func PushToQueue() {
 			log.Println("WATCH error: ", err)
 			return
 		}
-
 		processTime := time.Now().Unix()
-
 		tasks, err := redis.Strings(
 			redisCon.Do("ZRANGEBYSCORE", "dlr_sched", 0, processTime))
 
@@ -328,7 +326,7 @@ func PushToQueue() {
 			if _, err := redisCon.Do("UNWATCH"); err != nil {
 				log.Println("UNWATCH error: ", err)
 			}
-			time.Sleep(time.Second * 10)
+			time.Sleep(time.Second * 5)
 		}
 	}
 }

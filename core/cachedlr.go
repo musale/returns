@@ -35,25 +35,32 @@ func CacheDlrPage(w http.ResponseWriter, r *http.Request) {
 }
 
 type CacheReq struct {
-	RecID int64  `json:"rid"`
+	RecID string `json:"rid"`
 	APIID string `json:"api_id"`
 }
 
 func CacheBulkDlrPage(w http.ResponseWriter, r *http.Request) {
-	// Todo: Print all POST requests received
-
-	apiIDs := r.FormValue("ids")
-
 	err := r.ParseForm()
 	if err != nil {
-		log.Println("err: CacheBulkParseForm: ", err)
+		log.Println("CacheBulk ParseFormError: ", err)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(Response{
+			Status: "not_ok", Message: "Problem with your request",
+		})
+		return
 	}
 	log.Println("CacheBulkDlrPage: ", r.Form)
 
+	apiIDs := r.FormValue("ids")
 	var allDlrs []CacheReq
 	err = json.Unmarshal([]byte(apiIDs), &allDlrs)
 	if err != nil {
 		log.Println("Error Unmarshal:", err)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(Response{
+			Status: "not_ok", Message: "Problem with your request",
+		})
+		return
 	}
 
 	redisCon := utils.RedisPool().Get()
@@ -62,10 +69,16 @@ func CacheBulkDlrPage(w http.ResponseWriter, r *http.Request) {
 	for _, rec := range allDlrs {
 		if _, err := redisCon.Do(
 			"SETEX", rec.APIID, 1209600000000000, rec.RecID); err != nil {
-			log.Fatal("cache error ", err)
+			log.Println("cache error ", err)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(Response{
+				Status: "not_ok", Message: "Problem with your request",
+			})
+			return
 		}
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(Response{
 		Status: "success", Message: "dlr received",
 	})
