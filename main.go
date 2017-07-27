@@ -39,16 +39,7 @@ func main() {
 		log.Fatal("Error DB ping ", err)
 	}
 
-	// Listen for Dlrs
-	go core.ListenForDlrs()
-	// Listen for Inbox
-	go core.ListenForInbox()
-	// Listen for optout
-	go core.ListenForOptOut()
-	// Push Scheduled Dlrs to reqdy queue
-	go core.PushToQueue()
-
-	startQueueDlrWorkers()
+	initStuff()
 
 	// Route set up
 	http.HandleFunc("/at-dlrs", core.ATDlrPage)
@@ -59,8 +50,37 @@ func main() {
 	http.HandleFunc("/cache-bulk-dlr", core.CacheBulkDlrPage)
 	http.HandleFunc("/inbox", core.InboxPage)
 	http.HandleFunc("/optout", core.OptoutPage)
+	http.HandleFunc("/saf-inbox", core.SafInboxPage)
 
 	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
+}
+
+func initStuff() {
+	log.Println("Started callbacks on port", os.Getenv("PORT"))
+	// Listen for Dlrs
+	go core.ListenForDlrs()
+	// Listen for Inbox
+	go core.ListenForInbox()
+	// Listen for optout
+	go core.ListenForOptOut()
+	// Push Scheduled Dlrs to reqdy queue
+	go core.PushToQueue()
+
+	startQueueDlrWorkers()
+	startSMSPool()
+}
+
+func startSMSPool() {
+	for i := 1; i <= 10; i++ {
+		go func() {
+			for notif := range core.SMSNotifs {
+				err := notif.ProcessSMSNofit()
+				if err != nil {
+					log.Println("ProcessSMSNofit: ", err)
+				}
+			}
+		}()
+	}
 }
 
 func startQueueDlrWorkers() {
