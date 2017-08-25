@@ -83,7 +83,6 @@ func ATDlrPage(w http.ResponseWriter, r *http.Request) {
 
 // RMDlrPage rendering
 func RMDlrPage(w http.ResponseWriter, r *http.Request) {
-
 	err := r.ParseForm()
 	if err != nil {
 		log.Println("err: RMParseForm: ", err)
@@ -220,17 +219,18 @@ func saveDlr(req *DLRRequest) error {
 
 	if err != nil {
 		if err == redis.ErrNil {
-			if req.Retries > 8 {
-				log.Println("Save Hanging DLR:", req)
-				err = saveHangingDlr(req)
-				if err != nil {
-					return err
-				}
+			if req.Retries > 3 {
+				log.Println("HangingDlr:", req)
+				// log.Println("Save Hanging DLR:", req)
+				// err = saveHangingDlr(req)
+				// if err != nil {
+				// 	return err
+				// }
 			} else {
 				log.Println("Sched DLR for retry:", req)
 				req.Retries++
 				err = utils.ScheduleTask(
-					"dlr_sched", req.parseRequestString(), 5*60)
+					"dlr_sched", req.parseRequestString(), 10*60)
 				if err != nil {
 					return err
 				}

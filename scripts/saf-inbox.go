@@ -8,7 +8,8 @@ import (
 )
 
 const (
-	NOTIFY_SMS_URL           = "http://192.168.122.95:8017/saf-inbox"
+	// NOTIFY_SMS_URL           = "http://192.168.122.95:8017/saf-inbox"
+	NOTIFY_SMS_URL           = "http://callbacks.smsleopard.com/saf-inbox"
 	NOTIFY_SMS_URL_REG_QUERY = `
 <?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:loc="http://www.csapi.org/schema/parlayx/sms/notification/v2_2/local" xmlns:v2="http://www.huawei.com.cn/schema/common/v2_1">

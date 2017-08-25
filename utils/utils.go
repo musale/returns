@@ -155,6 +155,10 @@ func RedisPool() *redis.Pool {
 			if err != nil {
 				panic(err.Error())
 			}
+			_, err = c.Do("AUTH", os.Getenv("RED_PASS"))
+			if err != nil {
+				panic(err.Error())
+			}
 			return c, err
 		},
 	}
